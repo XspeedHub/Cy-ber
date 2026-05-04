@@ -6,21 +6,22 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local TextChatService = game:GetService("TextChatService")
 local ContextActionService = game:GetService("ContextActionService")
 
 local lp = Players.LocalPlayer
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CyberHub"
+ScreenGui.Name = "ZyrielDuels"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local COLORS = {
-    MainBG = Color3.fromRGB(8, 8, 12),        -- black
-    TabBG = Color3.fromRGB(15, 15, 25),       -- dark blue-black
-    Border = Color3.fromRGB(0, 170, 255),     -- bright blue
-    TextActive = Color3.fromRGB(0, 170, 255), -- blue
-    TextInactive = Color3.fromRGB(140, 140, 170),
-    RowBG = Color3.fromRGB(18, 20, 32)
+    MainBG = Color3.fromRGB(11, 14, 20),
+    TabBG = Color3.fromRGB(15, 20, 28),
+    Border = Color3.fromRGB(255, 200, 0),
+    TextActive = Color3.fromRGB(255, 200, 0),
+    TextInactive = Color3.fromRGB(140, 140, 140),
+    RowBG = Color3.fromRGB(18, 24, 35)
 }
 
 local function create(class, props)
@@ -34,15 +35,29 @@ local function create(class, props)
     return obj
 end
 
-local configFile = "CyberHub_config.json"
+local configFile = "Zyriel_Duels_config.json"
 local Config = {}
 local ToggleStates = {}
 local LockUIMove = false
 local Keybinds = {}
 
-local ToggleIcon, MainFrame, AntiRagdoll, NoAnim, PlayerESP, InfiniteJump, AutoSteal, SpeedVisual, Fov, TpDown, AutoLeft, AutoRight
-local NormalSpeed = {Enabled = true, WalkSpeed = 30, connection = nil}  -- default 30 para smooth
+local ToggleIcon, MainFrame, AntiRagdoll, XrayBase, NoAnim, PlayerESP, InfiniteJump, AutoSteal, Drop, Float, Taunt, SpeedVisual, Fov, TpDown, AutoLeft, AutoRight, AutoMedusa, OptimizerEnabled, AutoBat
 
+local PLOT3_POS = Vector3.new(-476.7524719238281, 10.464664459228516, 7.107429504394531)
+local PLOT7_POS = Vector3.new(-476.7524719238281, 10.464664459228516, 114.10742950439453)
+local FINAL_POS1 = Vector3.new(-483.59, -5.04, 104.24)
+local FINAL_POS2 = Vector3.new(-483.51, -5.10, 18.89)
+local CHECKPOINT_A = Vector3.new(-472.60, -7.00, 57.52)
+local CHECKPOINT_B1 = Vector3.new(-472.65, -7.00, 95.69)
+local CHECKPOINT_B2 = Vector3.new(-471.76, -7.00, 26.22)
+local TARGET_POS = Vector3.new(-9999, -6.50, 62.32)
+
+local POSITION_1 = Vector3.new(-476.48, -6.28, 92.73)
+local POSITION_2 = Vector3.new(-483.12, -4.95, 94.80)
+local POSITION_R1 = Vector3.new(-476.16, -6.52, 25.62)
+local POSITION_R2 = Vector3.new(-483.04, -5.09, 23.14)
+
+-- Auto Left/Right Position Vectors
 local AP_L1 = Vector3.new(-476.48, -6.28, 92.73)
 local AP_L2 = Vector3.new(-483.12, -4.95, 96.80)
 local AP_L_FACE = Vector3.new(-482.25, -4.96, 92.09)
@@ -51,49 +66,402 @@ local AP_R1 = Vector3.new(-476.16, -6.52, 25.62)
 local AP_R2 = Vector3.new(-483.06, -5.11, 23.48)
 local AP_R_FACE = Vector3.new(-482.06, -6.93, 35.47)
 
+Float = {Enabled = false, platform = nil, lockedHeight = nil, heartbeatConn = nil, characterConn = nil, gui = nil, btn = nil}
+Taunt = {Enabled = false, gui = nil, btn = nil}
 SpeedVisual = {Enabled = false, speedBB = nil, heartbeatConn = nil}
 Fov = {Enabled = false, loopConn = nil}
 TpDown = {Enabled = false, btn = nil, gui = nil}
 InfiniteJump = {Enabled = true, jumpForce = 54, clampFallSpeed = 130}
 
--- Normal Speed functions
-local function applyNormalSpeed(character)
-    if not NormalSpeed.Enabled then return end
-    local hum = character and character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = NormalSpeed.WalkSpeed
-    end
-end
-
-local function setupNormalSpeed()
-    if NormalSpeed.connection then NormalSpeed.connection:Disconnect() end
-    NormalSpeed.connection = lp.CharacterAdded:Connect(function(character)
-        task.wait(0.2)
-        applyNormalSpeed(character)
-    end)
-    if lp.Character then applyNormalSpeed(lp.Character) end
-end
-
-local function enableNormalSpeed()
-    if NormalSpeed.Enabled then return end
-    NormalSpeed.Enabled = true
-    setupNormalSpeed()
-end
-
-local function disableNormalSpeed()
-    if not NormalSpeed.Enabled then return end
-    NormalSpeed.Enabled = false
-    if lp.Character then
-        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = 16 end  -- default speed
-    end
-end
-
 -- Auto Left/Right variables
 AutoLeft = {Enabled = false, connection = nil, phase = 1, gui = nil, btn = nil}
 AutoRight = {Enabled = false, connection = nil, phase = 1, gui = nil, btn = nil}
 
+-- Auto Medusa variables (IMPROVED - with auto-equip and counter)
+AutoMedusa = {
+    Enabled = false,
+    medusaPart = nil,
+    lastUse = 0,
+    initialized = false,
+    lastMedusaHit = 0,
+    MEDUSA_RADIUS = 12,
+    SPAM_DELAY = 0.1,
+    COUNTER_DELAY = 0.5
+}
+
+-- Auto Bat variables (GUI always enabled - never mawawala)
+AutoBat = {Enabled = false, speed = 59, connection = nil, gui = nil, btn = nil}
+
+-- Optimizer variable
+OptimizerEnabled = false
+
 local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
+-- ========== OPTIMIZER (Anti Lag) ==========
+local function enableOptimizer()
+    if OptimizerEnabled then return end
+    OptimizerEnabled = true
+    
+    Workspace.Terrain.WaterWaveSize = 0
+    game:GetService("Lighting").GlobalShadows = false
+    
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.Plastic
+        elseif obj:IsA("Decal") then
+            obj.Transparency = 1
+        end
+    end
+    
+    local Lighting = game:GetService("Lighting")
+    Lighting.Brightness = 1
+    Lighting.ClockTime = 12
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") then
+            obj.Enabled = false
+        elseif obj:IsA("Smoke") or obj:IsA("Fire") then
+            obj.Enabled = false
+        end
+    end
+end
+
+local function disableOptimizer()
+    if not OptimizerEnabled then return end
+    OptimizerEnabled = false
+end
+
+-- ========== AUTO MEDUSA FUNCTIONS (IMPROVED - with auto-equip and counter) ==========
+local function initAutoMedusa()
+    if AutoMedusa.initialized then return end
+    AutoMedusa.initialized = true
+
+    local function createRadius()
+        if AutoMedusa.medusaPart then AutoMedusa.medusaPart:Destroy() end
+        AutoMedusa.medusaPart = Instance.new("Part")
+        AutoMedusa.medusaPart.Name = "MedusaRadius"
+        AutoMedusa.medusaPart.Anchored = true
+        AutoMedusa.medusaPart.CanCollide = false
+        AutoMedusa.medusaPart.Transparency = 1
+        AutoMedusa.medusaPart.Material = Enum.Material.Neon
+        AutoMedusa.medusaPart.Color = Color3.fromRGB(255, 0, 0)
+        AutoMedusa.medusaPart.Shape = Enum.PartType.Cylinder
+        AutoMedusa.medusaPart.Size = Vector3.new(0.05, AutoMedusa.MEDUSA_RADIUS*2, AutoMedusa.MEDUSA_RADIUS*2)
+        AutoMedusa.medusaPart.Parent = workspace
+    end
+
+    local function isMedusaEquipped()
+        local char = lp.Character
+        if not char then return nil end
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name == "Medusa's Head" or tool.Name:lower():find("medusa")) then
+                return tool
+            end
+        end
+        return nil
+    end
+
+    local function equipMedusa()
+        local char = lp.Character
+        if not char then return false end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then return false end
+        
+        -- Check if already equipped
+        if isMedusaEquipped() then return true end
+        
+        -- Find Medusa in backpack
+        local bp = lp:FindFirstChild("Backpack")
+        if bp then
+            for _, tool in ipairs(bp:GetChildren()) do
+                if tool:IsA("Tool") and (tool.Name == "Medusa's Head" or tool.Name:lower():find("medusa")) then
+                    hum:EquipTool(tool)
+                    task.wait(0.1)
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function useMedusa()
+        if tick() - AutoMedusa.lastUse < AutoMedusa.SPAM_DELAY then return end
+        local char = lp.Character
+        if not char then return end
+        
+        -- Auto-equip Medusa if not equipped
+        if not isMedusaEquipped() then
+            equipMedusa()
+            task.wait(0.05)
+        end
+        
+        local tool = isMedusaEquipped()
+        if tool then
+            pcall(function() tool:Activate() end)
+            AutoMedusa.lastUse = tick()
+        end
+    end
+
+    -- Check if player is being Medusa'd (anchored/stoned)
+    local function isBeingMedusad()
+        local char = lp.Character
+        if not char then return false end
+        
+        -- Check if player is anchored (petrified)
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Anchored then
+            return true
+        end
+        
+        -- Check for stone material or effects
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if part.Material == Enum.Material.Slate or part.Material == Enum.Material.Concrete then
+                    return true
+                end
+            end
+        end
+        
+        return false
+    end
+
+    createRadius()
+
+    -- Visual radius (red circle when enabled)
+    RunService.RenderStepped:Connect(function()
+        if not AutoMedusa.Enabled then
+            if AutoMedusa.medusaPart then AutoMedusa.medusaPart.Transparency = 1 end
+            return
+        end
+        if AutoMedusa.medusaPart then 
+            AutoMedusa.medusaPart.Transparency = 0.75
+            AutoMedusa.medusaPart.Color = Color3.fromRGB(255, 50, 50)
+        end
+        local char = lp.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        AutoMedusa.medusaPart.CFrame = CFrame.new(root.Position + Vector3.new(0, -2.5, 0)) * CFrame.Angles(0, 0, math.rad(90))
+    end)
+
+    -- Main Auto Medusa logic
+    RunService.Heartbeat:Connect(function()
+        if not AutoMedusa.Enabled then return end
+        
+        local char = lp.Character
+        if not char then return end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        -- CHECK IF BEING MEDUSA'D (COUNTER ATTACK)
+        if isBeingMedusad() and tick() - AutoMedusa.lastMedusaHit > AutoMedusa.COUNTER_DELAY then
+            AutoMedusa.lastMedusaHit = tick()
+            -- Force use Medusa to counter
+            useMedusa()
+            return
+        end
+        
+        -- Check for nearby enemies to petrify
+        local tool = isMedusaEquipped()
+        if not tool then
+            equipMedusa()
+            tool = isMedusaEquipped()
+        end
+        
+        if not tool then return end
+        if tick() - AutoMedusa.lastUse < AutoMedusa.SPAM_DELAY then return end
+        
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= lp then
+                local pChar = plr.Character
+                local pRoot = pChar and pChar:FindFirstChild("HumanoidRootPart")
+                if pRoot then
+                    local distance = (pRoot.Position - root.Position).Magnitude
+                    if distance <= AutoMedusa.MEDUSA_RADIUS then
+                        tool:Activate()
+                        AutoMedusa.lastUse = tick()
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function enableAutoMedusa()
+    if AutoMedusa.Enabled then return end
+    AutoMedusa.Enabled = true
+    initAutoMedusa()
+    print("[Auto Medusa] Enabled - Will auto-equip and counter when medusad!")
+end
+
+local function disableAutoMedusa()
+    if not AutoMedusa.Enabled then return end
+    AutoMedusa.Enabled = false
+    print("[Auto Medusa] Disabled")
+end
+
+-- ========== GET CLOSEST PLAYER FUNCTION (AUTO BAT) ==========
+local function getClosestPlayer()
+    local char = lp.Character
+    if not char then return nil, math.huge end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil, math.huge end
+    local cp, cd = nil, math.huge
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character then
+            local tr = p.Character:FindFirstChild("HumanoidRootPart")
+            if tr then
+                local d = (hrp.Position - tr.Position).Magnitude
+                if d < cd then
+                    cd = d
+                    cp = p
+                end
+            end
+        end
+    end
+    return cp, cd
+end
+
+-- ========== AUTO BAT HEARTBEAT ==========
+RunService.Heartbeat:Connect(function()
+    if not AutoBat.Enabled then return end
+    
+    local char = lp.Character
+    if not char then return end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Auto-equip Bat if not equipped
+    if not char:FindFirstChildOfClass("Tool") then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local bp = lp:FindFirstChild("Backpack")
+        local bat = (bp and bp:FindFirstChild("Bat")) or char:FindFirstChild("Bat")
+        if bat and hum then
+            hum:EquipTool(bat)
+        end
+    end
+    
+    -- Find nearest player and move towards them
+    local target, _ = getClosestPlayer()
+    if target and target.Character then
+        local tr = target.Character:FindFirstChild("HumanoidRootPart")
+        if tr then
+            local fp = tr.Position + tr.CFrame.LookVector * 1.5
+            local dir = (fp - hrp.Position).Unit
+            hrp.AssemblyLinearVelocity = Vector3.new(
+                dir.X * AutoBat.speed,
+                dir.Y * AutoBat.speed,
+                dir.Z * AutoBat.speed
+            )
+        end
+    end
+end)
+
+-- ========== AUTO BAT UI (FLOATING BUTTON - HINDI NAWAWALA) ==========
+local function createAutoBatUI()
+    if AutoBat.gui then return end
+    AutoBat.gui = Instance.new("ScreenGui")
+    AutoBat.gui.Name = "AutoBatUI"
+    AutoBat.gui.ResetOnSpawn = false
+    AutoBat.gui.Enabled = true
+    AutoBat.gui.Parent = CoreGui
+    AutoBat.btn = Instance.new("TextButton")
+    AutoBat.btn.Size = UDim2.new(0,100,0,40)
+    AutoBat.btn.Position = UDim2.new(0.5,-50,0.35,0)
+    AutoBat.btn.Text = "AUTO BAT: OFF"
+    AutoBat.btn.Font = Enum.Font.GothamBold
+    AutoBat.btn.TextSize = 12
+    AutoBat.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    AutoBat.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    AutoBat.btn.BackgroundTransparency = 0.5
+    AutoBat.btn.AutoButtonColor = false
+    AutoBat.btn.BorderSizePixel = 2
+    AutoBat.btn.BorderColor3 = Color3.fromRGB(255,200,0)
+    AutoBat.btn.Parent = AutoBat.gui
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0,8)
+    uiCorner.Parent = AutoBat.btn
+    if Config.Positions and Config.Positions.AutoBatBtn then
+        AutoBat.btn.Position = UDim2.new(unpack(Config.Positions.AutoBatBtn))
+    end
+    
+    -- DRAGGING CODE
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        AutoBat.btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    AutoBat.btn.InputBegan:Connect(function(input)
+        if LockUIMove then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = AutoBat.btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    AutoBat.btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then update(input) end
+    end)
+    
+    AutoBat.btn.MouseButton1Click:Connect(function()
+        AutoBat.Enabled = not AutoBat.Enabled
+        AutoBat.btn.Text = AutoBat.Enabled and "AUTO BAT: ON" or "AUTO BAT: OFF"
+        ToggleStates["Auto Bat"] = AutoBat.Enabled
+        if AutoBat.Enabled then
+            if AutoLeft.Enabled then
+                AutoLeft.Enabled = false
+                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+                stopAutoLeft()
+                ToggleStates["Auto Left"] = false
+            end
+            if AutoRight.Enabled then
+                AutoRight.Enabled = false
+                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+                stopAutoRight()
+                ToggleStates["Auto Right"] = false
+            end
+        end
+        saveConfig()
+    end)
+end
+
+local function enableAutoBat()
+    if AutoBat.Enabled then return end
+    AutoBat.Enabled = true
+    if not AutoBat.gui then createAutoBatUI() end
+    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: ON" end
+    if AutoLeft.Enabled then
+        AutoLeft.Enabled = false
+        if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+        stopAutoLeft()
+    end
+    if AutoRight.Enabled then
+        AutoRight.Enabled = false
+        if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+        stopAutoRight()
+    end
+    ToggleStates["Auto Bat"] = true
+    saveConfig()
+end
+
+local function disableAutoBat()
+    if not AutoBat.Enabled then return end
+    AutoBat.Enabled = false
+    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+    ToggleStates["Auto Bat"] = false
+    saveConfig()
+end
 
 -- ========== AUTO LEFT FUNCTIONS ==========
 local function stopAutoLeft()
@@ -155,7 +523,7 @@ local function startAutoLeft()
                 hum:Move(Vector3.zero, false)
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 AutoLeft.Enabled = false
-                if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
                 ToggleStates["Auto Left"] = false
                 if AutoLeft.connection then 
                     AutoLeft.connection:Disconnect() 
@@ -235,7 +603,7 @@ local function startAutoRight()
                 hum:Move(Vector3.zero, false)
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 AutoRight.Enabled = false
-                if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
                 ToggleStates["Auto Right"] = false
                 if AutoRight.connection then 
                     AutoRight.connection:Disconnect() 
@@ -255,7 +623,7 @@ local function startAutoRight()
     end)
 end
 
--- ========== CREATE AUTO LEFT UI (FLOATING BUTTON) ==========
+-- ========== CREATE AUTO LEFT UI (DRAGGABLE) ==========
 local function createAutoLeftUI()
     if AutoLeft.gui then return end
     AutoLeft.gui = Instance.new("ScreenGui")
@@ -264,14 +632,17 @@ local function createAutoLeftUI()
     AutoLeft.gui.Enabled = true
     AutoLeft.gui.Parent = CoreGui
     AutoLeft.btn = Instance.new("TextButton")
-    AutoLeft.btn.Size = UDim2.new(0,100,0,40)
-    AutoLeft.btn.Position = UDim2.new(0.5,-50,0.45,0)
-    AutoLeft.btn.Text = "Auto Left: OFF"
+    AutoLeft.btn.Size = UDim2.new(0,120,0,40)
+    AutoLeft.btn.Position = UDim2.new(0.5,-60,0.45,0)
+    AutoLeft.btn.Text = "AUTO LEFT: OFF"
     AutoLeft.btn.Font = Enum.Font.GothamBold
-    AutoLeft.btn.TextSize = 14
-    AutoLeft.btn.TextColor3 = Color3.new(1,1,1)
-    AutoLeft.btn.BackgroundColor3 = COLORS.Border
-    AutoLeft.btn.AutoButtonColor = true
+    AutoLeft.btn.TextSize = 12
+    AutoLeft.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    AutoLeft.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    AutoLeft.btn.BackgroundTransparency = 0.5
+    AutoLeft.btn.AutoButtonColor = false
+    AutoLeft.btn.BorderSizePixel = 2
+    AutoLeft.btn.BorderColor3 = Color3.fromRGB(255,200,0)
     AutoLeft.btn.Parent = AutoLeft.gui
     local uiCorner = Instance.new("UICorner")
     uiCorner.CornerRadius = UDim.new(0,8)
@@ -279,6 +650,7 @@ local function createAutoLeftUI()
     if Config.Positions and Config.Positions.AutoLeftBtn then
         AutoLeft.btn.Position = UDim2.new(unpack(Config.Positions.AutoLeftBtn))
     end
+    
     local dragging, dragInput, dragStart, startPos
     local function update(input)
         local delta = input.Position - dragStart
@@ -301,15 +673,21 @@ local function createAutoLeftUI()
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then update(input) end
     end)
+    
     AutoLeft.btn.MouseButton1Click:Connect(function()
         if AutoRight.Enabled then
             AutoRight.Enabled = false
-            if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+            if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
             stopAutoRight()
             ToggleStates["Auto Right"] = false
         end
+        if AutoBat.Enabled then
+            AutoBat.Enabled = false
+            if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+            ToggleStates["Auto Bat"] = false
+        end
         AutoLeft.Enabled = not AutoLeft.Enabled
-        AutoLeft.btn.Text = AutoLeft.Enabled and "Auto Left: ON" or "Auto Left: OFF"
+        AutoLeft.btn.Text = AutoLeft.Enabled and "AUTO LEFT: ON" or "AUTO LEFT: OFF"
         ToggleStates["Auto Left"] = AutoLeft.Enabled
         if AutoLeft.Enabled then
             startAutoLeft()
@@ -320,7 +698,7 @@ local function createAutoLeftUI()
     end)
 end
 
--- ========== CREATE AUTO RIGHT UI (FLOATING BUTTON) ==========
+-- ========== CREATE AUTO RIGHT UI (DRAGGABLE) ==========
 local function createAutoRightUI()
     if AutoRight.gui then return end
     AutoRight.gui = Instance.new("ScreenGui")
@@ -329,14 +707,17 @@ local function createAutoRightUI()
     AutoRight.gui.Enabled = true
     AutoRight.gui.Parent = CoreGui
     AutoRight.btn = Instance.new("TextButton")
-    AutoRight.btn.Size = UDim2.new(0,100,0,40)
-    AutoRight.btn.Position = UDim2.new(0.5,-50,0.5,0)
-    AutoRight.btn.Text = "Auto Right: OFF"
+    AutoRight.btn.Size = UDim2.new(0,120,0,40)
+    AutoRight.btn.Position = UDim2.new(0.5,-60,0.5,0)
+    AutoRight.btn.Text = "AUTO RIGHT: OFF"
     AutoRight.btn.Font = Enum.Font.GothamBold
-    AutoRight.btn.TextSize = 14
-    AutoRight.btn.TextColor3 = Color3.new(1,1,1)
-    AutoRight.btn.BackgroundColor3 = COLORS.Border
-    AutoRight.btn.AutoButtonColor = true
+    AutoRight.btn.TextSize = 12
+    AutoRight.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    AutoRight.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    AutoRight.btn.BackgroundTransparency = 0.5
+    AutoRight.btn.AutoButtonColor = false
+    AutoRight.btn.BorderSizePixel = 2
+    AutoRight.btn.BorderColor3 = Color3.fromRGB(255,200,0)
     AutoRight.btn.Parent = AutoRight.gui
     local uiCorner = Instance.new("UICorner")
     uiCorner.CornerRadius = UDim.new(0,8)
@@ -344,6 +725,7 @@ local function createAutoRightUI()
     if Config.Positions and Config.Positions.AutoRightBtn then
         AutoRight.btn.Position = UDim2.new(unpack(Config.Positions.AutoRightBtn))
     end
+    
     local dragging, dragInput, dragStart, startPos
     local function update(input)
         local delta = input.Position - dragStart
@@ -366,15 +748,21 @@ local function createAutoRightUI()
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then update(input) end
     end)
+    
     AutoRight.btn.MouseButton1Click:Connect(function()
         if AutoLeft.Enabled then
             AutoLeft.Enabled = false
-            if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+            if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
             stopAutoLeft()
             ToggleStates["Auto Left"] = false
         end
+        if AutoBat.Enabled then
+            AutoBat.Enabled = false
+            if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+            ToggleStates["Auto Bat"] = false
+        end
         AutoRight.Enabled = not AutoRight.Enabled
-        AutoRight.btn.Text = AutoRight.Enabled and "Auto Right: ON" or "Auto Right: OFF"
+        AutoRight.btn.Text = AutoRight.Enabled and "AUTO RIGHT: ON" or "AUTO RIGHT: OFF"
         ToggleStates["Auto Right"] = AutoRight.Enabled
         if AutoRight.Enabled then
             startAutoRight()
@@ -383,6 +771,66 @@ local function createAutoRightUI()
         end
         saveConfig()
     end)
+end
+
+local function enableAutoLeft()
+    if AutoLeft.Enabled then return end
+    AutoLeft.Enabled = true
+    if not AutoLeft.gui then createAutoLeftUI() end
+    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: ON" end
+    ToggleStates["Auto Left"] = true
+    if AutoRight.Enabled then
+        AutoRight.Enabled = false
+        if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+        ToggleStates["Auto Right"] = false
+        stopAutoRight()
+    end
+    if AutoBat.Enabled then
+        AutoBat.Enabled = false
+        if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+        ToggleStates["Auto Bat"] = false
+    end
+    startAutoLeft()
+    saveConfig()
+end
+
+local function disableAutoLeft()
+    if not AutoLeft.Enabled then return end
+    AutoLeft.Enabled = false
+    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+    ToggleStates["Auto Left"] = false
+    stopAutoLeft()
+    saveConfig()
+end
+
+local function enableAutoRight()
+    if AutoRight.Enabled then return end
+    AutoRight.Enabled = true
+    if not AutoRight.gui then createAutoRightUI() end
+    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: ON" end
+    ToggleStates["Auto Right"] = true
+    if AutoLeft.Enabled then
+        AutoLeft.Enabled = false
+        if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+        ToggleStates["Auto Left"] = false
+        stopAutoLeft()
+    end
+    if AutoBat.Enabled then
+        AutoBat.Enabled = false
+        if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+        ToggleStates["Auto Bat"] = false
+    end
+    startAutoRight()
+    saveConfig()
+end
+
+local function disableAutoRight()
+    if not AutoRight.Enabled then return end
+    AutoRight.Enabled = false
+    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+    ToggleStates["Auto Right"] = false
+    stopAutoRight()
+    saveConfig()
 end
 
 local function createSpeedVisual()
@@ -450,6 +898,201 @@ local function disableFov()
     if Fov.loopConn then Fov.loopConn:Disconnect() end
 end
 
+-- ========== CREATE TAUNT UI (DRAGGABLE) ==========
+local function createTauntUI()
+    if Taunt.gui then return end
+    Taunt.gui = Instance.new("ScreenGui")
+    Taunt.gui.Name = "TauntUI"
+    Taunt.gui.ResetOnSpawn = false
+    Taunt.gui.Enabled = true
+    Taunt.gui.Parent = CoreGui
+    Taunt.btn = Instance.new("TextButton")
+    Taunt.btn.Size = UDim2.new(0,100,0,40)
+    Taunt.btn.Position = UDim2.new(0.5,-50,0.55,0)
+    Taunt.btn.Text = "TAUNT"
+    Taunt.btn.Font = Enum.Font.GothamBold
+    Taunt.btn.TextSize = 12
+    Taunt.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    Taunt.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Taunt.btn.BackgroundTransparency = 0.5
+    Taunt.btn.AutoButtonColor = false
+    Taunt.btn.BorderSizePixel = 2
+    Taunt.btn.BorderColor3 = Color3.fromRGB(255,200,0)
+    Taunt.btn.Parent = Taunt.gui
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0,8)
+    uiCorner.Parent = Taunt.btn
+    if Config.Positions and Config.Positions.TauntBtn then
+        Taunt.btn.Position = UDim2.new(unpack(Config.Positions.TauntBtn))
+    end
+    
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        Taunt.btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    Taunt.btn.InputBegan:Connect(function(input)
+        if LockUIMove then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Taunt.btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    Taunt.btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then update(input) end
+    end)
+    
+    Taunt.btn.MouseButton1Click:Connect(function()
+        if not Taunt.Enabled then return end
+        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if channel then pcall(function() channel:SendAsync("/ZYRIEL HUB On Top") end) end
+        Taunt.btn.Text = "SENT!"
+        task.wait(1)
+        Taunt.btn.Text = "TAUNT"
+    end)
+end
+
+local function enableTaunt()
+    if Taunt.Enabled then return end
+    Taunt.Enabled = true
+    if not Taunt.gui then createTauntUI() end
+    Taunt.gui.Enabled = true
+end
+
+local function disableTaunt()
+    if not Taunt.Enabled then return end
+    Taunt.Enabled = false
+    if Taunt.gui then Taunt.gui.Enabled = false end
+end
+
+-- ========== CREATE FLOAT UI (DRAGGABLE) ==========
+local function createFloatUI()
+    if Float.gui then return end
+    Float.gui = Instance.new("ScreenGui")
+    Float.gui.Name = "FloatUI"
+    Float.gui.ResetOnSpawn = false
+    Float.gui.Enabled = true
+    Float.gui.Parent = CoreGui
+    Float.btn = Instance.new("TextButton")
+    Float.btn.Size = UDim2.new(0,100,0,40)
+    Float.btn.Position = UDim2.new(0.5,-50,0.6,0)
+    Float.btn.Text = "FLOAT: OFF"
+    Float.btn.Font = Enum.Font.GothamBold
+    Float.btn.TextSize = 12
+    Float.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    Float.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Float.btn.BackgroundTransparency = 0.5
+    Float.btn.AutoButtonColor = false
+    Float.btn.BorderSizePixel = 2
+    Float.btn.BorderColor3 = Color3.fromRGB(255,200,0)
+    Float.btn.Parent = Float.gui
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0,8)
+    uiCorner.Parent = Float.btn
+    if Config.Positions and Config.Positions.FloatBtn then
+        Float.btn.Position = UDim2.new(unpack(Config.Positions.FloatBtn))
+    end
+    
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        Float.btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    Float.btn.InputBegan:Connect(function(input)
+        if LockUIMove then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Float.btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    Float.btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then update(input) end
+    end)
+    
+    Float.btn.MouseButton1Click:Connect(function()
+        Float.Enabled = not Float.Enabled
+        Float.btn.Text = Float.Enabled and "FLOAT: ON" or "FLOAT: OFF"
+        if Float.Enabled then startFloat() else stopFloat() end
+        saveConfig()
+    end)
+end
+
+local floatConn = nil
+local FLOAT_HEIGHT = 7
+local floatTargetY = nil
+local floatActive = false
+
+local function startFloat()
+    if floatActive then return end
+    local c = lp.Character
+    if not c then return end
+    local r = c:FindFirstChild("HumanoidRootPart")
+    if not r then return end
+    floatTargetY = r.Position.Y + FLOAT_HEIGHT
+    floatActive = true
+    if floatConn then floatConn:Disconnect() end
+    floatConn = RunService.Heartbeat:Connect(function()
+        if not Float.Enabled or not floatActive then
+            return
+        end
+        local char = lp.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+        local diff = floatTargetY - root.Position.Y
+        if math.abs(diff) > 0.05 then
+            root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, diff * 12, root.AssemblyLinearVelocity.Z)
+        end
+    end)
+end
+
+local function stopFloat()
+    floatActive = false
+    if floatConn then
+        floatConn:Disconnect()
+        floatConn = nil
+    end
+    local c = lp.Character
+    if c then
+        local r = c:FindFirstChild("HumanoidRootPart")
+        if r then
+            r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, -150, r.AssemblyLinearVelocity.Z)
+        end
+    end
+end
+
+local function enableFloat()
+    if Float.Enabled then return end
+    Float.Enabled = true
+    if not Float.gui then createFloatUI() end
+    if Float.btn then Float.btn.Text = "FLOAT: ON" end
+    startFloat()
+end
+
+local function disableFloat()
+    if not Float.Enabled then return end
+    Float.Enabled = false
+    if Float.gui then Float.gui.Enabled = false end
+    if Float.btn then Float.btn.Text = "FLOAT: OFF" end
+    stopFloat()
+end
+
+-- ========== CREATE TP DOWN UI (DRAGGABLE) ==========
 local function tpDownAction()
     local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -459,20 +1102,24 @@ local function tpDownAction()
 end
 
 local function createTpDownUI()
+    if TpDown.gui then return end
     TpDown.gui = Instance.new("ScreenGui")
     TpDown.gui.Name = "TpDownUI"
     TpDown.gui.ResetOnSpawn = false
-    TpDown.gui.Enabled = false
+    TpDown.gui.Enabled = true
     TpDown.gui.Parent = CoreGui
     TpDown.btn = Instance.new("TextButton")
     TpDown.btn.Size = UDim2.new(0,100,0,40)
     TpDown.btn.Position = UDim2.new(0.5,-50,0.65,0)
-    TpDown.btn.Text = "Tp Down"
+    TpDown.btn.Text = "TP DOWN"
     TpDown.btn.Font = Enum.Font.GothamBold
-    TpDown.btn.TextSize = 14
-    TpDown.btn.TextColor3 = Color3.new(1,1,1)
-    TpDown.btn.BackgroundColor3 = COLORS.Border
-    TpDown.btn.AutoButtonColor = true
+    TpDown.btn.TextSize = 12
+    TpDown.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    TpDown.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    TpDown.btn.BackgroundTransparency = 0.5
+    TpDown.btn.AutoButtonColor = false
+    TpDown.btn.BorderSizePixel = 2
+    TpDown.btn.BorderColor3 = Color3.fromRGB(255,200,0)
     TpDown.btn.Parent = TpDown.gui
     local uiCorner = Instance.new("UICorner")
     uiCorner.CornerRadius = UDim.new(0,8)
@@ -480,6 +1127,7 @@ local function createTpDownUI()
     if Config.Positions and Config.Positions.TpDownBtn then
         TpDown.btn.Position = UDim2.new(unpack(Config.Positions.TpDownBtn))
     end
+    
     local dragging, dragInput, dragStart, startPos
     local function update(input)
         local delta = input.Position - dragStart
@@ -502,6 +1150,7 @@ local function createTpDownUI()
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then update(input) end
     end)
+    
     TpDown.btn.MouseButton1Click:Connect(function()
         tpDownAction()
     end)
@@ -518,6 +1167,123 @@ local function disableTpDown()
     if not TpDown.Enabled then return end
     TpDown.Enabled = false
     if TpDown.gui then TpDown.gui.Enabled = false end
+end
+
+-- ========== WALKFLING FUNCTION FOR DROP ==========
+local function doWalkFling()
+    local _wfConns = {}
+    local _wfActive = false
+    local player = lp
+    local function startWalkFling()
+        _wfActive = true
+        table.insert(_wfConns, RunService.Stepped:Connect(function()
+            if not _wfActive then return end
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character then
+                    for _, part in ipairs(p.Character:GetChildren()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
+                    end
+                end
+            end
+        end))
+        local co = coroutine.create(function()
+            while _wfActive do
+                RunService.Heartbeat:Wait()
+                local char = player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if not root then RunService.Heartbeat:Wait() continue end
+                local vel = root.Velocity
+                root.Velocity = vel * 10000 + Vector3.new(0,10000,0)
+                RunService.RenderStepped:Wait()
+                if root and root.Parent then root.Velocity = vel end
+                RunService.Stepped:Wait()
+                if root and root.Parent then root.Velocity = vel + Vector3.new(0,0.1,0) end
+            end
+        end)
+        coroutine.resume(co)
+        table.insert(_wfConns, co)
+    end
+    local function stopWalkFling()
+        _wfActive = false
+        for _, c in ipairs(_wfConns) do
+            if typeof(c) == "RBXScriptConnection" then c:Disconnect()
+            elseif typeof(c) == "thread" then pcall(task.cancel, c) end
+        end
+        _wfConns = {}
+    end
+    startWalkFling()
+    task.delay(0.4, stopWalkFling)
+end
+
+-- ========== CREATE DROP UI (DRAGGABLE) ==========
+Drop = {Enabled = false, gui = nil, btn = nil, wfConns = {}, wfActive = false}
+
+local function createDropUI()
+    if Drop.gui then return end
+    Drop.gui = Instance.new("ScreenGui")
+    Drop.gui.Name = "DropUI"
+    Drop.gui.ResetOnSpawn = false
+    Drop.gui.Enabled = true
+    Drop.gui.Parent = CoreGui
+    Drop.btn = Instance.new("TextButton")
+    Drop.btn.Size = UDim2.new(0,100,0,40)
+    Drop.btn.Position = UDim2.new(0.5,-50,0.75,0)
+    Drop.btn.Text = "DROP"
+    Drop.btn.Font = Enum.Font.GothamBold
+    Drop.btn.TextSize = 12
+    Drop.btn.TextColor3 = Color3.fromRGB(255,200,0)
+    Drop.btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Drop.btn.BackgroundTransparency = 0.5
+    Drop.btn.AutoButtonColor = false
+    Drop.btn.BorderSizePixel = 2
+    Drop.btn.BorderColor3 = Color3.fromRGB(255,200,0)
+    Drop.btn.Parent = Drop.gui
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0,8)
+    uiCorner.Parent = Drop.btn
+    if Config.Positions and Config.Positions.DropBtn then
+        Drop.btn.Position = UDim2.new(unpack(Config.Positions.DropBtn))
+    end
+    
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        Drop.btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    Drop.btn.InputBegan:Connect(function(input)
+        if LockUIMove then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Drop.btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    Drop.btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then update(input) end
+    end)
+    
+    Drop.btn.MouseButton1Click:Connect(function()
+        doWalkFling()
+    end)
+end
+
+local function enableDrop()
+    if Drop.Enabled then return end
+    Drop.Enabled = true
+    if not Drop.gui then createDropUI() end
+    Drop.gui.Enabled = true
+end
+
+local function disableDrop()
+    if not Drop.Enabled then return end
+    Drop.Enabled = false
+    if Drop.gui then Drop.gui.Enabled = false end
 end
 
 local function enableInfJump()
@@ -556,30 +1322,37 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ========== NORMAL SPEED SETUP ==========
-setupNormalSpeed()  -- initial setup
-
 local function saveConfig()
     local saveData = {Toggles = {}, Positions = {}, AutoSteal = {}, Keybinds = {}, Other = {}}
     for k, v in pairs(ToggleStates) do saveData.Toggles[k] = v end
     for k, v in pairs(Keybinds) do saveData.Keybinds[k] = v end
     if ToggleIcon then saveData.Positions.ToggleIcon = {ToggleIcon.Position.X.Scale, ToggleIcon.Position.X.Offset, ToggleIcon.Position.Y.Scale, ToggleIcon.Position.Y.Offset} end
     if MainFrame then saveData.Positions.MainFrame = {MainFrame.Position.X.Scale, MainFrame.Position.X.Offset, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset} end
+    if Drop and Drop.btn then saveData.Positions.DropBtn = {Drop.btn.Position.X.Scale, Drop.btn.Position.X.Offset, Drop.btn.Position.Y.Scale, Drop.btn.Position.Y.Offset} end
+    if Float and Float.btn then saveData.Positions.FloatBtn = {Float.btn.Position.X.Scale, Float.btn.Position.X.Offset, Float.btn.Position.Y.Scale, Float.btn.Position.Y.Offset} end
+    if Taunt and Taunt.btn then saveData.Positions.TauntBtn = {Taunt.btn.Position.X.Scale, Taunt.btn.Position.X.Offset, Taunt.btn.Position.Y.Scale, Taunt.btn.Position.Y.Offset} end
     if TpDown and TpDown.btn then saveData.Positions.TpDownBtn = {TpDown.btn.Position.X.Scale, TpDown.btn.Position.X.Offset, TpDown.btn.Position.Y.Scale, TpDown.btn.Position.Y.Offset} end
     if AutoLeft and AutoLeft.btn then saveData.Positions.AutoLeftBtn = {AutoLeft.btn.Position.X.Scale, AutoLeft.btn.Position.X.Offset, AutoLeft.btn.Position.Y.Scale, AutoLeft.btn.Position.Y.Offset} end
     if AutoRight and AutoRight.btn then saveData.Positions.AutoRightBtn = {AutoRight.btn.Position.X.Scale, AutoRight.btn.Position.X.Offset, AutoRight.btn.Position.Y.Scale, AutoRight.btn.Position.Y.Offset} end
+    if AutoBat and AutoBat.btn then saveData.Positions.AutoBatBtn = {AutoBat.btn.Position.X.Scale, AutoBat.btn.Position.X.Offset, AutoBat.btn.Position.Y.Scale, AutoBat.btn.Position.Y.Offset} end
     if AutoSteal then saveData.AutoSteal = {Radius = AutoSteal.STEAL_RADIUS or 8, Duration = AutoSteal.STEAL_DURATION or 0.2} end
     if AntiRagdoll then saveData.Other.RagdollEnabled = AntiRagdoll.Enabled or false end
     if InfiniteJump then saveData.Other.JumpPower = InfiniteJump.jumpForce or 54 saveData.Other.JumpClamp = InfiniteJump.clampFallSpeed or 130 end
+    if Drop then saveData.Other.DropEnabled = Drop.Enabled or false end
+    if Float then saveData.Other.FloatEnabled = Float.Enabled or false end
+    if Taunt then saveData.Other.TauntEnabled = Taunt.Enabled or false end
     if SpeedVisual then saveData.Other.SpeedVisualEnabled = SpeedVisual.Enabled or false end
     if Fov then saveData.Other.FovEnabled = Fov.Enabled or false end
     if AutoSteal then saveData.Other.AutoStealEnabled = AutoSteal.Enabled or false end
     if NoAnim then saveData.Other.NoAnimEnabled = NoAnim.Enabled or false end
     if PlayerESP then saveData.Other.PlayerESPEnabled = PlayerESP.Enabled or false end
+    if XrayBase then saveData.Other.XrayBaseEnabled = XrayBase.Enabled or false end
+    if AutoMedusa then saveData.Other.AutoMedusaEnabled = AutoMedusa.Enabled or false end
+    if OptimizerEnabled then saveData.Other.OptimizerEnabled = OptimizerEnabled or false end
+    if AutoBat then saveData.Other.AutoBatEnabled = AutoBat.Enabled or false end
+    if AutoBat then saveData.Other.AutoBatSpeed = AutoBat.speed or 59 end
     saveData.Other.AutoLeftEnabled = AutoLeft.Enabled or false
     saveData.Other.AutoRightEnabled = AutoRight.Enabled or false
-    saveData.Other.NormalSpeedEnabled = NormalSpeed.Enabled or false
-    saveData.Other.NormalSpeedValue = NormalSpeed.WalkSpeed or 30
     local data = HttpService:JSONEncode(saveData)
     writefile(configFile, data)
 end
@@ -599,8 +1372,10 @@ local function loadConfig()
             if Config.Other.JumpClamp then InfiniteJump.clampFallSpeed = Config.Other.JumpClamp end
             if Config.Other.AutoLeftEnabled ~= nil then AutoLeft.Enabled = Config.Other.AutoLeftEnabled end
             if Config.Other.AutoRightEnabled ~= nil then AutoRight.Enabled = Config.Other.AutoRightEnabled end
-            if Config.Other.NormalSpeedEnabled ~= nil then NormalSpeed.Enabled = Config.Other.NormalSpeedEnabled end
-            if Config.Other.NormalSpeedValue then NormalSpeed.WalkSpeed = Config.Other.NormalSpeedValue end
+            if Config.Other.AutoMedusaEnabled ~= nil then AutoMedusa.Enabled = Config.Other.AutoMedusaEnabled end
+            if Config.Other.OptimizerEnabled ~= nil then OptimizerEnabled = Config.Other.OptimizerEnabled end
+            if Config.Other.AutoBatEnabled ~= nil then AutoBat.Enabled = Config.Other.AutoBatEnabled end
+            if Config.Other.AutoBatSpeed ~= nil then AutoBat.speed = Config.Other.AutoBatSpeed end
         end
     end
 end
@@ -614,8 +1389,10 @@ local function resetConfig()
     LockUIMove = false
     AutoLeft.Enabled = false
     AutoRight.Enabled = false
-    NormalSpeed.Enabled = true
-    NormalSpeed.WalkSpeed = 30
+    AutoMedusa.Enabled = false
+    OptimizerEnabled = false
+    AutoBat.Enabled = false
+    AutoBat.speed = 59
     stopAutoLeft()
     stopAutoRight()
     for _, page in pairs(Pages) do
@@ -640,23 +1417,17 @@ local function resetConfig()
             end
         end
     end
+    if Drop and Drop.gui then Drop.gui.Enabled = false Drop.Enabled = false end
+    if Float and Float.gui then Float.gui.Enabled = false Float.Enabled = false end
+    if Taunt and Taunt.gui then Taunt.gui.Enabled = false Taunt.Enabled = false end
     saveConfig()
-    -- Reapply normal speed
-    if NormalSpeed.Enabled then enableNormalSpeed() else disableNormalSpeed() end
 end
 
 loadConfig()
 
--- Reapply normal speed after loading config
-if NormalSpeed.Enabled then
-    enableNormalSpeed()
-else
-    disableNormalSpeed()
-end
-
 ToggleIcon = create("TextButton", {
     Size = UDim2.new(0,45,0,45), Position = UDim2.new(0.05,0,0.2,0),
-    BackgroundColor3 = COLORS.MainBG, Text = "CB", TextColor3 = COLORS.Border,
+    BackgroundColor3 = COLORS.MainBG, Text = "ZY", TextColor3 = COLORS.Border,
     Font = "GothamBold", TextSize = 16, Parent = ScreenGui
 })
 create("UICorner", {CornerRadius = UDim.new(0,8), Parent = ToggleIcon})
@@ -673,7 +1444,7 @@ if Config.Positions and Config.Positions.MainFrame then MainFrame.Position = UDi
 
 local Header = create("Frame", {Size = UDim2.new(1,0,0,45), BackgroundTransparency = 1, Parent = MainFrame})
 create("TextLabel", {
-    Text = "CYBER HUB", TextColor3 = COLORS.Border, Font = "GothamBold", TextSize = 18,
+    Text = "ZYRIEL DUELS", TextColor3 = COLORS.Border, Font = "GothamBold", TextSize = 18,
     Size = UDim2.new(0.5,0,1,0), Position = UDim2.new(0.05,0,0,0),
     BackgroundTransparency = 1, TextXAlignment = "Left", Parent = Header
 })
@@ -813,7 +1584,7 @@ local function AddButton(pageName, labelText, callback)
     })
     local Btn = create("TextButton", {
         Size = UDim2.new(0,100,0,30), Position = UDim2.new(0.95,-110,0.5,-15),
-        BackgroundColor3 = COLORS.Border, Text = labelText, TextColor3 = Color3.new(1,1,1),
+        BackgroundColor3 = COLORS.Border, Text = labelText, TextColor3 = Color3.fromRGB(0,0,0),
         Font = "GothamBold", TextSize = 13, Parent = Row
     })
     create("UICorner", {CornerRadius = UDim.new(0,6), Parent = Btn})
@@ -890,38 +1661,84 @@ local function AddKeybind(pageName, labelText, actionName, defaultKey)
                 saveConfig()
                 ContextActionService:BindAction(actionName, function(actionName, inputState, inputObject)
                     if inputState == Enum.UserInputState.Begin then
-                        if actionName == "TpDown" and TpDown then
+                        if actionName == "Drop" and Drop then
+                            doWalkFling()
+                        elseif actionName == "Taunt" and Taunt then
+                            local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+                            if channel then pcall(function() channel:SendAsync("/ZYRIEL HUB On Top") end) end
+                        elseif actionName == "Float" and Float then
+                            if not Float.Enabled then return end
+                            Float.Enabled = not Float.Enabled
+                            if Float.btn then Float.btn.Text = Float.Enabled and "FLOAT: ON" or "FLOAT: OFF" end
+                            if Float.Enabled then startFloat() else stopFloat() end
+                        elseif actionName == "TpDown" and TpDown then
                             tpDownAction()
                         elseif actionName == "AutoLeft" then
                             if AutoRight.Enabled then
                                 AutoRight.Enabled = false
-                                if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+                                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
                                 stopAutoRight()
+                            end
+                            if AutoBat.Enabled then
+                                AutoBat.Enabled = false
+                                if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
                             end
                             AutoLeft.Enabled = not AutoLeft.Enabled
                             if AutoLeft.Enabled then
                                 if not AutoLeft.gui then createAutoLeftUI() end
-                                if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: ON" end
+                                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: ON" end
                                 startAutoLeft()
                             else
-                                if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+                                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
                                 stopAutoLeft()
                             end
                             saveConfig()
                         elseif actionName == "AutoRight" then
                             if AutoLeft.Enabled then
                                 AutoLeft.Enabled = false
-                                if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+                                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
                                 stopAutoLeft()
+                            end
+                            if AutoBat.Enabled then
+                                AutoBat.Enabled = false
+                                if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
                             end
                             AutoRight.Enabled = not AutoRight.Enabled
                             if AutoRight.Enabled then
                                 if not AutoRight.gui then createAutoRightUI() end
-                                if AutoRight.btn then AutoRight.btn.Text = "Auto Right: ON" end
+                                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: ON" end
                                 startAutoRight()
                             else
-                                if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+                                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
                                 stopAutoRight()
+                            end
+                            saveConfig()
+                        elseif actionName == "AutoBat" then
+                            if AutoLeft.Enabled then
+                                AutoLeft.Enabled = false
+                                if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+                                stopAutoLeft()
+                            end
+                            if AutoRight.Enabled then
+                                AutoRight.Enabled = false
+                                if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+                                stopAutoRight()
+                            end
+                            AutoBat.Enabled = not AutoBat.Enabled
+                            if AutoBat.Enabled then
+                                if not AutoBat.gui then createAutoBatUI() end
+                                if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: ON" end
+                            else
+                                if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+                            end
+                            saveConfig()
+                        elseif actionName == "AutoMedusa" then
+                            AutoMedusa.Enabled = not AutoMedusa.Enabled
+                            ToggleStates["Auto Medusa"] = AutoMedusa.Enabled
+                            if AutoMedusa.Enabled then
+                                enableAutoMedusa()
+                            else
+                                disableAutoMedusa()
                             end
                             saveConfig()
                         end
@@ -941,38 +1758,84 @@ local function AddKeybind(pageName, labelText, actionName, defaultKey)
     end)
     ContextActionService:BindAction(actionName, function(actionName, inputState, inputObject)
         if inputState == Enum.UserInputState.Begin then
-            if actionName == "TpDown" and TpDown then
+            if actionName == "Drop" and Drop then
+                doWalkFling()
+            elseif actionName == "Taunt" and Taunt then
+                local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+                if channel then pcall(function() channel:SendAsync("/ZYRIEL HUB On Top") end) end
+            elseif actionName == "Float" and Float then
+                if not Float.Enabled then return end
+                Float.Enabled = not Float.Enabled
+                if Float.btn then Float.btn.Text = Float.Enabled and "FLOAT: ON" or "FLOAT: OFF" end
+                if Float.Enabled then startFloat() else stopFloat() end
+            elseif actionName == "TpDown" and TpDown then
                 tpDownAction()
             elseif actionName == "AutoLeft" then
                 if AutoRight.Enabled then
                     AutoRight.Enabled = false
-                    if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+                    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
                     stopAutoRight()
+                end
+                if AutoBat.Enabled then
+                    AutoBat.Enabled = false
+                    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
                 end
                 AutoLeft.Enabled = not AutoLeft.Enabled
                 if AutoLeft.Enabled then
                     if not AutoLeft.gui then createAutoLeftUI() end
-                    if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: ON" end
+                    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: ON" end
                     startAutoLeft()
                 else
-                    if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+                    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
                     stopAutoLeft()
                 end
                 saveConfig()
             elseif actionName == "AutoRight" then
                 if AutoLeft.Enabled then
                     AutoLeft.Enabled = false
-                    if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+                    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
                     stopAutoLeft()
+                end
+                if AutoBat.Enabled then
+                    AutoBat.Enabled = false
+                    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
                 end
                 AutoRight.Enabled = not AutoRight.Enabled
                 if AutoRight.Enabled then
                     if not AutoRight.gui then createAutoRightUI() end
-                    if AutoRight.btn then AutoRight.btn.Text = "Auto Right: ON" end
+                    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: ON" end
                     startAutoRight()
                 else
-                    if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+                    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
                     stopAutoRight()
+                end
+                saveConfig()
+            elseif actionName == "AutoBat" then
+                if AutoLeft.Enabled then
+                    AutoLeft.Enabled = false
+                    if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+                    stopAutoLeft()
+                end
+                if AutoRight.Enabled then
+                    AutoRight.Enabled = false
+                    if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+                    stopAutoRight()
+                end
+                AutoBat.Enabled = not AutoBat.Enabled
+                if AutoBat.Enabled then
+                    if not AutoBat.gui then createAutoBatUI() end
+                    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: ON" end
+                else
+                    if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+                end
+                saveConfig()
+            elseif actionName == "AutoMedusa" then
+                AutoMedusa.Enabled = not AutoMedusa.Enabled
+                ToggleStates["Auto Medusa"] = AutoMedusa.Enabled
+                if AutoMedusa.Enabled then
+                    enableAutoMedusa()
+                else
+                    disableAutoMedusa()
                 end
                 saveConfig()
             end
@@ -1029,6 +1892,45 @@ local function disableAntiRagdoll()
     if AntiRagdoll.heartbeatConn then AntiRagdoll.heartbeatConn:Disconnect() end
 end
 
+XrayBase = {Enabled = false, OriginalTransparency = {}, Connections = {}, BaseKeywords = {"base", "claim"}}
+
+local function isPlayerBase(obj)
+    if not (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) then return false end
+    local n = obj.Name:lower()
+    local p = obj.Parent and obj.Parent.Name:lower() or ""
+    for _, keyword in ipairs(XrayBase.BaseKeywords) do
+        if n:find(keyword) or p:find(keyword) then return true end
+    end
+    return false
+end
+
+local function applyTransparency(obj)
+    if isPlayerBase(obj) then
+        if not XrayBase.OriginalTransparency[obj] then XrayBase.OriginalTransparency[obj] = obj.LocalTransparencyModifier end
+        obj.LocalTransparencyModifier = 0.8
+    end
+end
+
+local function enableXrayBase()
+    if XrayBase.Enabled then return end
+    XrayBase.Enabled = true
+    for _, obj in ipairs(Workspace:GetDescendants()) do applyTransparency(obj) end
+    XrayBase.Connections.descendantAdded = Workspace.DescendantAdded:Connect(function(obj) applyTransparency(obj) end)
+    XrayBase.Connections.characterAdded = lp.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        for _, obj in ipairs(Workspace:GetDescendants()) do applyTransparency(obj) end
+    end)
+end
+
+local function disableXrayBase()
+    if not XrayBase.Enabled then return end
+    XrayBase.Enabled = false
+    for _, conn in pairs(XrayBase.Connections) do conn:Disconnect() end
+    XrayBase.Connections = {}
+    for obj, original in pairs(XrayBase.OriginalTransparency) do obj.LocalTransparencyModifier = original end
+    XrayBase.OriginalTransparency = {}
+end
+
 NoAnim = {Enabled = false, CharacterConnections = {}}
 
 local function disableAnims(character)
@@ -1067,7 +1969,7 @@ PlayerESP = {Enabled = false, ESP_COLOR = Color3.fromRGB(85,255,85), Highlights 
 
 local function createHighlight(character)
     local h = Instance.new("Highlight")
-    h.Name = "CyberHub_PlayerESP_Highlight"
+    h.Name = "Zyriel_PlayerESP_Highlight"
     h.Adornee = character
     h.FillColor = PlayerESP.ESP_COLOR
     h.FillTransparency = 0.25
@@ -1082,7 +1984,7 @@ local function createBillboard(character, player)
     local hrp = character:WaitForChild("HumanoidRootPart", 5)
     if not hrp then return nil end
     local bb = Instance.new("BillboardGui")
-    bb.Name = "CyberHub_PlayerESP_Name"
+    bb.Name = "Zyriel_PlayerESP_Name"
     bb.Adornee = hrp
     bb.AlwaysOnTop = true
     bb.Size = UDim2.new(0,100,0,20)
@@ -1164,7 +2066,7 @@ local function createStealUI()
     containerCorner.CornerRadius = UDim.new(0,14)
     containerCorner.Parent = AutoSteal.barContainer
     local containerStroke = Instance.new("UIStroke")
-    containerStroke.Color = COLORS.Border
+    containerStroke.Color = Color3.fromRGB(255,200,0)
     containerStroke.Thickness = 1.5
     containerStroke.Transparency = 0.7
     containerStroke.Parent = AutoSteal.barContainer
@@ -1180,7 +2082,7 @@ local function createStealUI()
     barBgCorner.Parent = barBackground
     AutoSteal.progressBar = Instance.new("Frame")
     AutoSteal.progressBar.Size = UDim2.new(0,0,1,0)
-    AutoSteal.progressBar.BackgroundColor3 = COLORS.Border
+    AutoSteal.progressBar.BackgroundColor3 = Color3.fromRGB(255,200,0)
     AutoSteal.progressBar.BorderSizePixel = 0
     AutoSteal.progressBar.Parent = barBackground
     local barCorner = Instance.new("UICorner")
@@ -1327,17 +2229,22 @@ AddToggleWithButton("Combat", "Auto Left", false, function(v)
     if v then 
         if AutoRight.Enabled then
             AutoRight.Enabled = false
-            if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+            if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
             stopAutoRight()
             ToggleStates["Auto Right"] = false
         end
+        if AutoBat.Enabled then
+            AutoBat.Enabled = false
+            if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+            ToggleStates["Auto Bat"] = false
+        end
         AutoLeft.Enabled = true
         if not AutoLeft.gui then createAutoLeftUI() end
-        if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: ON" end
+        if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: ON" end
         startAutoLeft()
     else 
         AutoLeft.Enabled = false
-        if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+        if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
         stopAutoLeft()
     end 
 end)
@@ -1346,86 +2253,121 @@ AddToggleWithButton("Combat", "Auto Right", false, function(v)
     if v then 
         if AutoLeft.Enabled then
             AutoLeft.Enabled = false
-            if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: OFF" end
+            if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
             stopAutoLeft()
             ToggleStates["Auto Left"] = false
         end
+        if AutoBat.Enabled then
+            AutoBat.Enabled = false
+            if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+            ToggleStates["Auto Bat"] = false
+        end
         AutoRight.Enabled = true
         if not AutoRight.gui then createAutoRightUI() end
-        if AutoRight.btn then AutoRight.btn.Text = "Auto Right: ON" end
+        if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: ON" end
         startAutoRight()
     else 
         AutoRight.Enabled = false
-        if AutoRight.btn then AutoRight.btn.Text = "Auto Right: OFF" end
+        if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
         stopAutoRight()
+    end 
+end)
+
+AddToggleWithButton("Combat", "Auto Bat", false, function(v) 
+    if v then 
+        if AutoLeft.Enabled then
+            AutoLeft.Enabled = false
+            if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: OFF" end
+            stopAutoLeft()
+            ToggleStates["Auto Left"] = false
+        end
+        if AutoRight.Enabled then
+            AutoRight.Enabled = false
+            if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: OFF" end
+            stopAutoRight()
+            ToggleStates["Auto Right"] = false
+        end
+        AutoBat.Enabled = true
+        if not AutoBat.gui then createAutoBatUI() end
+        if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: ON" end
+        ToggleStates["Auto Bat"] = true
+    else 
+        AutoBat.Enabled = false
+        if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: OFF" end
+        ToggleStates["Auto Bat"] = false
     end 
 end)
 
 AddToggle("Combat", "Inf Jump", false, function(v) if v then enableInfJump() else disableInfJump() end end)
 AddToggle("Combat", "Auto Steal", false, function(v) if v then enableAutoSteal() else disableAutoSteal() end end)
-
--- Normal Speed toggle and input
-AddToggle("Settings", "Normal Speed", NormalSpeed.Enabled, function(v) 
-    if v then 
-        enableNormalSpeed()
-    else 
-        disableNormalSpeed()
-    end 
-    saveConfig()
-end)
-AddInput("Settings", "Walk Speed", NormalSpeed.WalkSpeed, 16, 100, function(value) 
-    NormalSpeed.WalkSpeed = value
-    if NormalSpeed.Enabled then
-        if lp.Character then
-            local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = value end
-        end
-    end
-    saveConfig()
-end)
+AddToggle("Combat", "Auto Medusa", false, function(v) if v then enableAutoMedusa() else disableAutoMedusa() end end)
 
 AddToggle("Protect", "Anti-Ragdoll", false, function(v) if v then enableAntiRagdoll() else disableAntiRagdoll() end end)
+AddToggle("Protect", "Drop", false, function(v) if v then enableDrop() else disableDrop() end end)
 AddToggle("Protect", "Tp Down", false, function(v) if v then enableTpDown() else disableTpDown() end end)
+AddToggle("Protect", "Optimizer", false, function(v) if v then enableOptimizer() else disableOptimizer() end end)
 
+AddToggle("Visual", "Xray Base", false, function(v) if v then enableXrayBase() else disableXrayBase() end end)
 AddToggle("Visual", "No Anim", false, function(v) if v then enableNoAnim() else disableNoAnim() end end)
 AddToggle("Visual", "Player ESP", false, function(v) if v then enableESP() else disableESP() end end)
+AddToggleWithButton("Visual", "Float", false, function(v) if v then enableFloat() else disableFloat() end end)
 AddToggleWithButton("Visual", "Show Speed Visualization", false, function(v) if v then enableSpeedVisual() else disableSpeedVisual() end end)
 AddToggleWithButton("Visual", "Fov", false, function(v) if v then enableFov() else disableFov() end end)
 
 AddToggle("Settings", "Lock UI Positions", false, function(v) LockUIMove = v end)
+AddToggleWithButton("Settings", "Taunt", false, function(v) if v then enableTaunt() else disableTaunt() end end)
 AddInput("Settings", "Steal Radius", AutoSteal.STEAL_RADIUS, 1, 20, function(value) AutoSteal.STEAL_RADIUS = value saveConfig() end)
 AddInput("Settings", "Steal Duration", AutoSteal.STEAL_DURATION, 0.1, 2, function(value) AutoSteal.STEAL_DURATION = value saveConfig() end)
+AddInput("Settings", "Auto Bat Speed", AutoBat.speed, 1, 200, function(value) AutoBat.speed = value saveConfig() end)
 
+AddKeybind("Keys", "Drop", "Drop", "F3")
+AddKeybind("Keys", "Taunt", "Taunt", "F5")
+AddKeybind("Keys", "Float", "Float", "F6")
+AddKeybind("Keys", "Tp Down", "TpDown", "F7")
 AddKeybind("Keys", "Auto Left", "AutoLeft", "Z")
 AddKeybind("Keys", "Auto Right", "AutoRight", "C")
-AddKeybind("Keys", "Tp Down", "TpDown", "F7")
+AddKeybind("Keys", "Auto Bat", "AutoBat", "E")
+AddKeybind("Keys", "Auto Medusa", "AutoMedusa", "M")
 
-AddButton("Settings", "Save Config", function(btn) saveConfig() btn.Text = "Saved!" task.wait(1) btn.Text = "Save Config" end)
-AddButton("Settings", "Reset", function(btn) resetConfig() btn.Text = "Reset!" task.wait(1) btn.Text = "Reset" end)
+AddButton("Settings", "Save Config", function(btn) saveConfig() btn.Text = "SAVED!" task.wait(1) btn.Text = "Save Config" end)
+AddButton("Settings", "Reset", function(btn) resetConfig() btn.Text = "RESET!" task.wait(1) btn.Text = "Reset" end)
 
 local function applyExtraConfig()
     if Config.Other then
+        Drop.Enabled = Config.Other.DropEnabled or false
+        Float.Enabled = Config.Other.FloatEnabled or false
+        Taunt.Enabled = Config.Other.TauntEnabled or false
         SpeedVisual.Enabled = Config.Other.SpeedVisualEnabled or false
         Fov.Enabled = Config.Other.FovEnabled or false
         AntiRagdoll.Enabled = Config.Other.RagdollEnabled or false
         AutoSteal.Enabled = Config.Other.AutoStealEnabled or false
         NoAnim.Enabled = Config.Other.NoAnimEnabled or false
         PlayerESP.Enabled = Config.Other.PlayerESPEnabled or false
+        XrayBase.Enabled = Config.Other.XrayBaseEnabled or false
         AutoLeft.Enabled = Config.Other.AutoLeftEnabled or false
         AutoRight.Enabled = Config.Other.AutoRightEnabled or false
-        if Config.Other.NormalSpeedEnabled ~= nil then NormalSpeed.Enabled = Config.Other.NormalSpeedEnabled end
-        if Config.Other.NormalSpeedValue then NormalSpeed.WalkSpeed = Config.Other.NormalSpeedValue end
+        AutoMedusa.Enabled = Config.Other.AutoMedusaEnabled or false
+        OptimizerEnabled = Config.Other.OptimizerEnabled or false
+        AutoBat.Enabled = Config.Other.AutoBatEnabled or false
+        if Config.Other.AutoBatSpeed then AutoBat.speed = Config.Other.AutoBatSpeed end
     end
     if ToggleStates["Auto Left"] and AutoLeft.Enabled then 
         if not AutoLeft.gui then createAutoLeftUI() end
-        if AutoLeft.btn then AutoLeft.btn.Text = "Auto Left: ON" end
+        if AutoLeft.btn then AutoLeft.btn.Text = "AUTO LEFT: ON" end
         startAutoLeft()
     end
     if ToggleStates["Auto Right"] and AutoRight.Enabled then 
         if not AutoRight.gui then createAutoRightUI() end
-        if AutoRight.btn then AutoRight.btn.Text = "Auto Right: ON" end
+        if AutoRight.btn then AutoRight.btn.Text = "AUTO RIGHT: ON" end
         startAutoRight()
     end
+    if ToggleStates["Auto Bat"] and AutoBat.Enabled then 
+        if not AutoBat.gui then createAutoBatUI() end
+        if AutoBat.btn then AutoBat.btn.Text = "AUTO BAT: ON" end
+    end
+    if ToggleStates["Drop"] and Drop.Enabled then enableDrop() end
+    if ToggleStates["Float"] and Float.Enabled then enableFloat() end
+    if ToggleStates["Taunt"] and Taunt.Enabled then enableTaunt() end
     if ToggleStates["Show Speed Visualization"] and SpeedVisual.Enabled then enableSpeedVisual() end
     if ToggleStates["Fov"] and Fov.Enabled then enableFov() end
     if ToggleStates["Anti-Ragdoll"] and AntiRagdoll.Enabled then enableAntiRagdoll() end
@@ -1433,24 +2375,37 @@ local function applyExtraConfig()
     if ToggleStates["Tp Down"] and TpDown.Enabled then enableTpDown() end
     if ToggleStates["No Anim"] and NoAnim.Enabled then enableNoAnim() end
     if ToggleStates["Player ESP"] and PlayerESP.Enabled then enableESP() end
-    if ToggleStates["Normal Speed"] and NormalSpeed.Enabled then enableNormalSpeed() else disableNormalSpeed() end
+    if ToggleStates["Xray Base"] and XrayBase.Enabled then enableXrayBase() end
+    if ToggleStates["Auto Medusa"] and AutoMedusa.Enabled then enableAutoMedusa() end
+    if ToggleStates["Optimizer"] and OptimizerEnabled then enableOptimizer() end
 end
 
 applyExtraConfig()
 
--- Create Auto Left/Right guis initially
+-- Create all UI buttons initially
 task.spawn(function()
     createAutoLeftUI()
     createAutoRightUI()
+    createDropUI()
+    createFloatUI()
+    createTauntUI()
+    createTpDownUI()
+    createAutoBatUI()
+    
     if AutoLeft.Enabled then
-        AutoLeft.btn.Text = "Auto Left: ON"
+        AutoLeft.btn.Text = "AUTO LEFT: ON"
     else
-        AutoLeft.btn.Text = "Auto Left: OFF"
+        AutoLeft.btn.Text = "AUTO LEFT: OFF"
     end
     if AutoRight.Enabled then
-        AutoRight.btn.Text = "Auto Right: ON"
+        AutoRight.btn.Text = "AUTO RIGHT: ON"
     else
-        AutoRight.btn.Text = "Auto Right: OFF"
+        AutoRight.btn.Text = "AUTO RIGHT: OFF"
+    end
+    if AutoBat.Enabled then
+        AutoBat.btn.Text = "AUTO BAT: ON"
+    else
+        AutoBat.btn.Text = "AUTO BAT: OFF"
     end
 end)
 
@@ -1478,23 +2433,41 @@ drag(MainFrame)
 drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
-print("Cyber Hub Loaded!")
-print("Features: Auto Left (Z), Auto Right (C), Infinite Jump, Anti Ragdoll, Auto Steal, Tp Down (F7), No Anim, Player ESP, Speed Visual, Fov, Normal Speed Control")
+print("Zyriel Duels Loaded!")
+print("Features: Auto Left (Z), Auto Right (C), Auto Bat (E), Auto Medusa (M), Infinite Jump, Anti Ragdoll, Auto Steal, Drop, Float, Taunt, Tp Down, Optimizer, Xray Base, No Anim, Player ESP, Speed Visual, Fov")
 print("")
-print("===== KEYBINDS =====")
+print("===== BUTTONS (DRAGGABLE - HOLD AND DRAG TO MOVE) =====")
 print("Z - Toggle Auto Left")
 print("C - Toggle Auto Right")
+print("E - Toggle Auto Bat")
+print("M - Toggle Auto Medusa")
+print("F3 - Drop")
+print("F5 - Taunt")
+print("F6 - Float")
 print("F7 - Tp Down")
 print("")
+print("===== AUTO MEDUSA FEATURES =====")
+print("✓ Auto-equip Medusa's Head from backpack")
+print("✓ Auto-counter when enemy uses Medusa on you")
+print("✓ 12 stud radius detection")
+print("✓ Shows red circle when enabled")
+print("✓ 0.1 sec spam delay, 0.5 sec counter delay")
+print("")
 print("===== FEATURES =====")
-print("Auto Left - Automates stealing from left side animals (Button always visible)")
-print("Auto Right - Automates stealing from right side animals (Button always visible)")
+print("All buttons are DRAGGABLE - hold and drag to move")
+print("Auto Left - Automates stealing from left side animals")
+print("Auto Right - Automates stealing from right side animals")
+print("Auto Bat - Automatically equips Bat and flies towards nearest enemy")
 print("Auto Steal - Automatically steals from nearby animals")
+print("Auto Medusa - Auto-equip and instant counter when medusad")
+print("Optimizer - Reduces graphics for better performance")
 print("Infinite Jump - Unlimited jumps")
 print("Anti Ragdoll - Prevents ragdoll state")
+print("Xray Base - See through enemy bases")
 print("No Anim - Disables animations")
-print("Player ESP - See other players through awalls")
+print("Player ESP - See other players through walls")
 print("Speed Visual - Shows current speed")
 print("Fov - Increases field of view to 120")
+print("Float - Hover in the air")
+print("Taunt - Sends taunt message")
 print("Tp Down - Teleports to ground")
-print("Normal Speed - Adjust walking speed (Settings tab) para maging smooth at hindi mabigat")
