@@ -1476,25 +1476,25 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- INFINITE JUMP (PC + MOBILE HOLDABLE)
+-- INFINITE JUMP (PC + MOBILE HOLDABLE - UNLIMITED HEIGHT)
 -- ============================================================
 
--- Track the last time JumpRequest fired (mobile holds fire it repeatedly)
 local lastJumpRequest = 0
 
--- Single-press: fires immediately on JumpRequest (works on both PC and mobile)
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
     lastJumpRequest = tick()
     local c = LP.Character; if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
-    if root then root.Velocity = Vector3.new(root.Velocity.X, 53, root.Velocity.Z) end
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(
+            root.AssemblyLinearVelocity.X,
+            root.AssemblyLinearVelocity.Y + 8,
+            root.AssemblyLinearVelocity.Z
+        )
+    end
 end)
 
--- Hold: continuously re-applies upward velocity while held
--- PC: detects Space / Gamepad A via IsKeyDown
--- Mobile: JumpRequest fires repeatedly (~every 0.1s) while the jump button is held,
---         so we treat a very recent JumpRequest as "still holding"
 RunService.Heartbeat:Connect(function()
     if not State.infJumpEnabled then return end
     local c = LP.Character; if not c then return end
@@ -1503,10 +1503,14 @@ RunService.Heartbeat:Connect(function()
 
     local holding = UIS:IsKeyDown(Enum.KeyCode.Space)
         or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
-        or (tick() - lastJumpRequest < 0.15) -- mobile hold detection
+        or (tick() - lastJumpRequest < 0.15) -- mobile hold
 
     if holding then
-        root.Velocity = Vector3.new(root.Velocity.X, 53, root.Velocity.Z)
+        root.AssemblyLinearVelocity = Vector3.new(
+            root.AssemblyLinearVelocity.X,
+            root.AssemblyLinearVelocity.Y + 8,
+            root.AssemblyLinearVelocity.Z
+        )
     end
 end)
 
