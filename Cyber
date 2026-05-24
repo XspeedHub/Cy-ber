@@ -1476,27 +1476,43 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- HOLDABLE INFINITE JUMP
+-- INFINITE JUMP (PC + MOBILE HOLDABLE)
 -- ============================================================
--- Single-press: fires immediately on JumpRequest
+
+local lastJumpRequest = 0
+
+-- Fires on every press/tap AND repeatedly while mobile jump is held
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
+    lastJumpRequest = tick()
     local c = LP.Character; if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
-    if root then root.Velocity = Vector3.new(root.Velocity.X, 53, root.Velocity.Z) end
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(
+            root.AssemblyLinearVelocity.X,
+            20,
+            root.AssemblyLinearVelocity.Z
+        )
+    end
 end)
 
--- Hold: continuously re-applies upward velocity while Space / Gamepad A is held
+-- Hold detection: Space/ButtonA for PC, lastJumpRequest for mobile
 RunService.Heartbeat:Connect(function()
     if not State.infJumpEnabled then return end
     local c = LP.Character; if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
-    local hum2 = c:FindFirstChildOfClass("Humanoid")
-    if not root or not hum2 then return end
+    if not root then return end
+
     local holding = UIS:IsKeyDown(Enum.KeyCode.Space)
         or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
+        or (tick() - lastJumpRequest < 0.15)
+
     if holding then
-        root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z)
+        root.AssemblyLinearVelocity = Vector3.new(
+            root.AssemblyLinearVelocity.X,
+            20,
+            root.AssemblyLinearVelocity.Z
+        )
     end
 end)
 
