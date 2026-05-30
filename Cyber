@@ -1,14 +1,14 @@
 -- ============================================================
 -- CYBER HUB v1.0 - All Features in 1 Tab (Black & Blue Edition)
 -- WITH AVATAR & USERNAME DISPLAY AT THE TOP
--- WITH NEW AIMBOT (MAS MABILIS AT SUMUSUNOD)
+-- WITH UPDATED AIMBOT (FASTER + BETTER TRACKING + RESET DETECTION)
 -- ============================================================
 
 local Players         = game:GetService("Players")
 local RunService      = game:GetService("RunService")
 local UIS             = game:GetService("UserInputService")
 local TweenService    = game:GetService("TweenService")
-local HttpService      = game:GetService("HttpService")
+local HttpService     = game:GetService("HttpService")
 local ContentProvider = game:GetService("ContentProvider")
 local Stats           = game:GetService("Stats")
 local CoreGui         = game:GetService("CoreGui")
@@ -38,6 +38,8 @@ local State = {
     lastMoveDir=Vector3.new(0,0,0),
     unwalkEnabled=false, stackButtonsHidden=false,
     _prevCarry=30, _prevSpeed=false,
+    -- AUTO TP DOWN
+    autoTpDownEnabled=false, autoTpDownY=20,
 }
 
 local Keys = {
@@ -84,7 +86,7 @@ local POS={
     R1=Vector3.new(-476.16,-6.52,25.62), R2=Vector3.new(-483.04,-5.11,23.14),
 }
 
-local Conns={autoSteal=nil,antiRag=nil,autoLeft=nil,autoRight=nil,aimbot=nil,anchor={},progress=nil,batCounter=nil,unwalk=nil}
+local Conns={autoSteal=nil,antiRag=nil,autoLeft=nil,autoRight=nil,aimbot=nil,anchor={},progress=nil,batCounter=nil,unwalk=nil,playerRespawn=nil}
 local AntiRagdollConns = {}
 
 local h,hrp
@@ -102,6 +104,7 @@ local setHideButtonsToggle
 local radTB
 local unwalkAnimateRef = nil
 local optimizerDescConn = nil
+local setAutoTpDown  -- forward declare
 
 local C = {
     winBg       = Color3.fromRGB(0, 0, 0),
@@ -167,7 +170,7 @@ local C = {
     divider     = Color3.fromRGB(0, 50, 100),
 }
 
-for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberProfileGui"}) do
+for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberBypass","CyberProfileGui"}) do
     pcall(function() local o=game:GetService("CoreGui"):FindFirstChild(name); if o then o:Destroy() end end)
     pcall(function() local o=LP:WaitForChild("PlayerGui"):FindFirstChild(name); if o then o:Destroy() end end)
 end
@@ -533,6 +536,9 @@ local function doStopUnwalk()
     unwalkAnimateRef = nil
 end
 
+-- ============================================================
+-- GUI ROWS
+-- ============================================================
 makeSectionHeader("Speed Settings")
 makeGap(2)
 
@@ -661,6 +667,17 @@ setUnwalkToggle = makeToggleRow("Unwalk", false, function(on)
     if on then doStartUnwalk() else doStopUnwalk() end
     pcall(saveConfig)
 end)
+
+-- AUTO TP DOWN toggle + Y trigger input
+setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
+    State.autoTpDownEnabled = on
+    pcall(saveConfig)
+end)
+makeInputRow("Y Trigger", State.autoTpDownY, function(n)
+    State.autoTpDownY = n
+    pcall(saveConfig)
+end)
+
 makeGap(8)
 
 makeSectionHeader("Other Keybinds")
@@ -1008,18 +1025,19 @@ stopDropBrainrot=function()
 end
 
 -- ============================================================
--- AIMBOT (Auto-equip REMOVED, Speed = 60)
+-- BAT AIMBOT
 -- ============================================================
-local VYSE_AIMBOT_SPEED  = 60  -- Changed to 60
-local VYSE_MELEE_OFFSET  = 4
-local SWING_COOLDOWN     = 0.03
+local VYSE_AIMBOT_SPEED  = 60
+local VYSE_MELEE_OFFSET  = 1.7
+local VYSE_HEAD_OFFSET   = Vector3.new(0, 2.6, 0)
+local BAT_SLAP_LIST      = {"Slap Bat", "Bat"}
 
 local aimbotLockedTarget  = nil
 local aimbotNoTargetSince = nil
 
 local aimbotHighlight = Instance.new("Highlight")
-aimbotHighlight.Name             = "CyberAimbotESP"
-aimbotHighlight.FillColor        = Color3.fromRGB(255, 0, 0)
+aimbotHighlight.Name             = "CyberHubAimbotESP"
+aimbotHighlight.FillColor        = Color3.fromRGB(0, 150, 255)
 aimbotHighlight.OutlineColor     = Color3.fromRGB(255, 255, 255)
 aimbotHighlight.FillTransparency = 0.5
 aimbotHighlight.OutlineTransparency = 0
@@ -1028,116 +1046,142 @@ if not aimbotHighlight.Parent then
     aimbotHighlight.Parent = LP:WaitForChild("PlayerGui")
 end
 
-local function _aimbotTargetValid(tc)
-    if not tc then return false end
-    local hum2 = tc:FindFirstChildOfClass("Humanoid")
-    local hrp2 = tc:FindFirstChild("HumanoidRootPart")
-    return hum2 and hrp2 and hum2.Health > 0 and not tc:FindFirstChildOfClass("ForceField")
+local playerRespawnTrack = {}
+local function setupPlayerResetDetection()
+    if Conns.playerRespawn then return end
+    Conns.playerRespawn = Players.PlayerAdded:Connect(function(player)
+        if player == LP then return end
+        player.CharacterAdded:Connect(function(character)
+            if State.batAimbotToggled and aimbotLockedTarget and aimbotLockedTarget == character then
+                aimbotLockedTarget = nil; aimbotNoTargetSince = nil
+            end
+            if aimbotLockedTarget and not aimbotLockedTarget.Parent then
+                aimbotLockedTarget = nil; aimbotNoTargetSince = nil
+            end
+        end)
+        player.CharacterRemoving:Connect(function(character)
+            if State.batAimbotToggled and aimbotLockedTarget == character then
+                aimbotLockedTarget = nil; aimbotNoTargetSince = nil
+            end
+        end)
+    end)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LP then
+            player.CharacterAdded:Connect(function(character)
+                if State.batAimbotToggled and aimbotLockedTarget == character then
+                    aimbotLockedTarget = nil; aimbotNoTargetSince = nil
+                end
+            end)
+            player.CharacterRemoving:Connect(function(character)
+                if State.batAimbotToggled and aimbotLockedTarget == character then
+                    aimbotLockedTarget = nil; aimbotNoTargetSince = nil
+                end
+            end)
+        end
+    end
 end
 
--- REMOVED: findAnyTool() function - no auto-equip
+local function _aimbotTargetValid(tc)
+    if not tc or not tc.Parent then return false end
+    local hum2 = tc:FindFirstChildOfClass("Humanoid")
+    local hrp2 = tc:FindFirstChild("HumanoidRootPart")
+    if hum2 then
+        if hum2.Health <= 0 then return false end
+        local state = hum2:GetState()
+        if state == Enum.HumanoidStateType.Dead then return false end
+    end
+    return hum2 and hrp2 and not tc:FindFirstChildOfClass("ForceField")
+end
+
+local function _aimbotFindBat()
+    local c = LP.Character; if not c then return nil end
+    local bp = LP:FindFirstChildOfClass("Backpack")
+    for _, ch in ipairs(c:GetChildren()) do
+        if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
+    end
+    if bp then
+        for _, ch in ipairs(bp:GetChildren()) do
+            if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
+        end
+    end
+    for _, name in ipairs(BAT_SLAP_LIST) do
+        local t = c:FindFirstChild(name) or (bp and bp:FindFirstChild(name))
+        if t then return t end
+    end
+    return nil
+end
 
 local function _aimbotGetTarget(myHRP)
     if aimbotLockedTarget and _aimbotTargetValid(aimbotLockedTarget) then
-        return aimbotLockedTarget:FindFirstChild("HumanoidRootPart"), aimbotLockedTarget
+        local hrp = aimbotLockedTarget:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Parent then return hrp, aimbotLockedTarget end
     end
     local best, bestHRP, bestDist = nil, nil, math.huge
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP and _aimbotTargetValid(p.Character) then
-            local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-            local d = (tHRP.Position - myHRP.Position).Magnitude
-            if d < bestDist then bestDist = d; bestHRP = tHRP; best = p.Character end
+        if p ~= LP then
+            local char = p.Character
+            if _aimbotTargetValid(char) then
+                local tHRP = char:FindFirstChild("HumanoidRootPart")
+                if tHRP and tHRP.Parent then
+                    local d = (tHRP.Position - myHRP.Position).Magnitude
+                    if d < bestDist then bestDist=d; bestHRP=tHRP; best=char end
+                end
+            end
         end
     end
     aimbotLockedTarget = best
     return bestHRP, best
 end
 
--- MODIFIED: Only swings if tool is already equipped
-local function tryHitBat()
-    if State.hittingCooldown then return end
-    State.hittingCooldown = true
-    pcall(function()
-        local c = LP.Character; if not c then return end
-        -- Only use currently equipped tool, don't auto-equip
-        local tool = c:FindFirstChildOfClass("Tool")
-        if tool then
-            local remote = tool:FindFirstChildOfClass("RemoteEvent")
-            if remote then pcall(function() remote:FireServer() end)
-            else pcall(function() tool:Activate() end) end
-        end
-    end)
-    task.delay(SWING_COOLDOWN, function() State.hittingCooldown = false end)
-end
-
--- Anti-die from file 2
-local _antiDieConns = {}
-local function _activateAntiDie()
-    for _, c2 in ipairs(_antiDieConns) do pcall(function() c2:Disconnect() end) end
-    _antiDieConns = {}
-    local char = LP.Character; if not char then return end
-    local hum2 = char:FindFirstChildOfClass("Humanoid"); if not hum2 then return end
-    hum2.BreakJointsOnDeath = false
-    hum2:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-    table.insert(_antiDieConns, hum2:GetPropertyChangedSignal("Health"):Connect(function()
-        if hum2.Health <= 0 then hum2.Health = hum2.MaxHealth end
-    end))
-    table.insert(_antiDieConns, hum2.Died:Connect(function()
-        task.wait()
-        local newHum = Instance.new("Humanoid")
-        newHum.Name = "ReplacedHumanoid"
-        newHum.Parent = char
-        workspace.CurrentCamera.CameraSubject = newHum
-        hum2:Destroy()
-    end))
-end
-
 startBatAimbot = function()
     if Conns.aimbot then return end
+    setupPlayerResetDetection()
     local c = LP.Character; if not c then return end
     local myHum = c:FindFirstChildOfClass("Humanoid"); if not myHum then return end
-    myHum.AutoRotate = true
-    _activateAntiDie()
-
+    pcall(function()
+        myHum.BreakJointsOnDeath = false
+        myHum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        myHum:GetPropertyChangedSignal("Health"):Connect(function()
+            if State.batAimbotToggled and myHum.Health <= 0 then myHum.Health = myHum.MaxHealth end
+        end)
+        myHum.Died:Connect(function()
+            if not State.batAimbotToggled then return end
+            task.wait()
+            local newHum = Instance.new("Humanoid"); newHum.Name = "ReplacedHumanoid"; newHum.Parent = c
+            workspace.CurrentCamera.CameraSubject = newHum; myHum:Destroy()
+        end)
+    end)
     Conns.aimbot = RunService.Heartbeat:Connect(function()
         if not State.batAimbotToggled then return end
-        local char = LP.Character; if not char then return end
+        local char = LP.Character; if not char or not char.Parent then return end
         local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
-        local myH = char:FindFirstChildOfClass("Humanoid"); if not myH then return end
-
-        -- REMOVED: Auto-equip logic - no longer equipping tools
-
+        local myH = char:FindFirstChildOfClass("Humanoid"); if not myH or myH.Health <= 0 then return end
+        myH.AutoRotate = false
         local tHRP, tChar = _aimbotGetTarget(myHRP)
-        if tHRP and tChar then
-            aimbotNoTargetSince = nil
-            aimbotHighlight.Adornee = tChar
-
+        if tHRP and tChar and tHRP.Parent and tChar.Parent then
+            aimbotNoTargetSince = nil; aimbotHighlight.Adornee = tChar
+            myH:Move(Vector3.new(0,0,0), false)
             local tVel = tHRP.AssemblyLinearVelocity
             local predictTime = math.clamp(tVel.Magnitude / 150, 0.05, 0.2)
             local predicted = tHRP.Position + tVel * predictTime
-            local dir = predicted - myHRP.Position
-            local dist = dir.Magnitude
-
-            local standPos = dist > 0 and (predicted - dir.Unit * VYSE_MELEE_OFFSET) or predicted
+            local behindOffset = -tHRP.CFrame.LookVector * VYSE_MELEE_OFFSET
+            local standPos = predicted + behindOffset + VYSE_HEAD_OFFSET
             local moveDir = standPos - myHRP.Position
-
-            if moveDir.Magnitude > 1 then
-                myHRP.AssemblyLinearVelocity = moveDir.Unit * VYSE_AIMBOT_SPEED
-            else
-                myHRP.AssemblyLinearVelocity = tVel
-            end
-
             local lookTarget = Vector3.new(predicted.X, myHRP.Position.Y, predicted.Z)
             if (lookTarget - myHRP.Position).Magnitude > 0.1 then
-                myHRP.CFrame = CFrame.new(myHRP.Position, lookTarget)
+                myHRP.CFrame = CFrame.lookAt(myHRP.Position, lookTarget) * CFrame.Angles(math.rad(-15), 0, 0)
             end
-
-            if dist <= VYSE_MELEE_OFFSET + 1 then tryHitBat() end
+            if moveDir.Magnitude > 0.05 then
+                myHRP.AssemblyLinearVelocity = moveDir.Unit * VYSE_AIMBOT_SPEED
+            else
+                local fwd = myHRP.CFrame.LookVector
+                myHRP.AssemblyLinearVelocity = Vector3.new(fwd.X, 0, fwd.Z).Unit * VYSE_AIMBOT_SPEED
+            end
         else
             if not aimbotNoTargetSince then aimbotNoTargetSince = tick() end
             if tick() - aimbotNoTargetSince > 1.5 then
                 aimbotLockedTarget = nil
-                myHRP.AssemblyLinearVelocity = Vector3.zero
+                if myHRP and myHRP.Parent then myHRP.AssemblyLinearVelocity = Vector3.new(0,0,0) end
                 aimbotHighlight.Adornee = nil
             end
         end
@@ -1146,10 +1190,10 @@ end
 
 stopBatAimbot = function()
     if Conns.aimbot then Conns.aimbot:Disconnect(); Conns.aimbot = nil end
-    aimbotLockedTarget = nil
-    aimbotNoTargetSince = nil
-    aimbotHighlight.Adornee = nil
+    aimbotLockedTarget = nil; aimbotNoTargetSince = nil; aimbotHighlight.Adornee = nil
     local c = LP.Character
+    local myH = c and c:FindFirstChildOfClass("Humanoid")
+    if myH then myH.AutoRotate = true; myH:Move(Vector3.new(0,0,0), false) end
     local root = c and c:FindFirstChild("HumanoidRootPart")
     if root then root.AssemblyLinearVelocity = Vector3.zero end
     State.hittingCooldown = false
@@ -1294,9 +1338,7 @@ startAntiRagdoll = function()
             or s == Enum.HumanoidStateType.Ragdoll
             or s == Enum.HumanoidStateType.FallingDown)
         local endTime = LP:GetAttribute("RagdollEndTime")
-        if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then
-            ragdolled = true
-        end
+        if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then ragdolled = true end
         if ragdolled then
             pcall(function() LP:SetAttribute("RagdollEndTime", workspace:GetServerTimeNow()) end)
             for _, d in ipairs(char:GetDescendants()) do
@@ -1306,13 +1348,9 @@ startAntiRagdoll = function()
                 end
             end
             for _, obj in ipairs(char:GetDescendants()) do
-                if obj:IsA("Motor6D") and obj.Enabled == false then
-                    obj.Enabled = true
-                end
+                if obj:IsA("Motor6D") and obj.Enabled == false then obj.Enabled = true end
             end
-            if hum.Health > 0 then
-                hum:ChangeState(Enum.HumanoidStateType.Running)
-            end
+            if hum.Health > 0 then hum:ChangeState(Enum.HumanoidStateType.Running) end
             workspace.CurrentCamera.CameraSubject = hum
             root.Anchored = false
             root.AssemblyLinearVelocity = Vector3.zero
@@ -1373,7 +1411,6 @@ applyFPSBoost = function()
         end)
     end)
 end
-
 -- ============================================================
 -- STEAL FUNCTIONS
 -- ============================================================
@@ -1429,6 +1466,9 @@ saveConfig = function()
     data.batCounter=State.batCounterEnabled; data.autoSteal=Steal.AutoStealEnabled
     data.unwalk=State.unwalkEnabled
     data.stackHidden=State.stackButtonsHidden; data.uiLocked=State.uiLocked
+    -- AUTO TP DOWN
+    data.autoTpDown=State.autoTpDownEnabled
+    data.autoTpDownY=State.autoTpDownY
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
     for _, def in ipairs(stackDefs) do
         local w = stackWrappers[def.key]
@@ -1470,6 +1510,12 @@ loadConfig = function()
         Steal.AutoStealEnabled=cfg.autoSteal; setInstaGrab(cfg.autoSteal)
         if cfg.autoSteal then pcall(startAutoSteal) else stopAutoSteal() end
     end
+    -- AUTO TP DOWN
+    if cfg.autoTpDown ~= nil and setAutoTpDown then
+        State.autoTpDownEnabled = cfg.autoTpDown
+        setAutoTpDown(cfg.autoTpDown)
+    end
+    if cfg.autoTpDownY then State.autoTpDownY = cfg.autoTpDownY end
     if cfg.stackHidden then
         State.stackButtonsHidden=true
         for _,wrapper in pairs(stackWrappers) do wrapper.Visible=false end
@@ -1511,7 +1557,7 @@ local function setupChar(char)
         bb.Size=UDim2.new(0,160,0,52); bb.StudsOffset=Vector3.new(0,3,0); bb.AlwaysOnTop=true
         local speedBillLbl=Instance.new("TextLabel",bb); speedBillLbl.Name="SpeedBillLbl"
         speedBillLbl.Size=UDim2.new(1,0,0,24); speedBillLbl.BackgroundTransparency=1
-        speedBillLbl.Text="0.0"; speedBillLbl.TextColor3=Color3.fromRGB(0,150,255)
+        speedBillLbl.Text="0"; speedBillLbl.TextColor3=Color3.fromRGB(0,150,255)
         speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
         speedBillLbl.TextScaled=true; speedBillLbl.TextStrokeTransparency=0.1; speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
         local lbl2=Instance.new("TextLabel",bb); lbl2.Size=UDim2.new(1,0,0,24); lbl2.Position=UDim2.new(0,0,0,28)
@@ -1527,7 +1573,6 @@ local function setupChar(char)
     if State.medusaCounterEnabled then setupMedusaCounter(char) end
     if State.batAimbotToggled then stopBatAimbot(); task.wait(0.2); pcall(startBatAimbot) end
     if State.batCounterEnabled then task.wait(0.3); startBatCounter() end
-    _activateAntiDie()
 end
 
 LP.CharacterAdded:Connect(setupChar)
@@ -1545,7 +1590,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- HOLDABLE INFINITE JUMP
+-- INFINITE JUMP
 -- ============================================================
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
@@ -1555,15 +1600,23 @@ UIS.JumpRequest:Connect(function()
 end)
 
 RunService.Heartbeat:Connect(function()
-    if not State.infJumpEnabled then return end
+    if not State.infJumpEnabled and not State.autoTpDownEnabled then return end
     local c = LP.Character; if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
     local hum2 = c:FindFirstChildOfClass("Humanoid")
     if not root or not hum2 then return end
-    local holding = UIS:IsKeyDown(Enum.KeyCode.Space)
-        or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
-    if holding then
-        root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z)
+
+    if State.infJumpEnabled then
+        local holding = UIS:IsKeyDown(Enum.KeyCode.Space) or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
+        if holding then root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z) end
+    end
+
+    -- AUTO TP DOWN: continuously watch Y and teleport down when above threshold
+    if State.autoTpDownEnabled then
+        if root.Position.Y >= State.autoTpDownY then
+            local rot = root.CFrame.Rotation
+            root.CFrame = CFrame.new(root.Position.X, -8.80, root.Position.Z) * rot
+        end
     end
 end)
 
@@ -1581,7 +1634,7 @@ RunService.RenderStepped:Connect(function()
     pcall(function()
         local head2=LP.Character and LP.Character:FindFirstChild("Head")
         if head2 then local bb2=head2:FindFirstChild("CyberHubBB"); local sl=bb2 and bb2:FindFirstChild("SpeedBillLbl")
-            if sl then sl.Text=string.format("%.1f",Vector3.new(hrp.Velocity.X,0,hrp.Velocity.Z).Magnitude) end
+            if sl then local vel=State.batAimbotToggled and hrp.AssemblyLinearVelocity or hrp.Velocity; local newSpd=State.batAimbotToggled and math.floor(vel.Magnitude+0.5) or math.floor(Vector3.new(vel.X,0,vel.Z).Magnitude+0.5); local cur=tonumber(sl.Text) or -1; if newSpd~=cur then sl.Text=tostring(newSpd) end end
         end
     end)
 end)
