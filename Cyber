@@ -1155,7 +1155,7 @@ startBatAimbot = function()
             end
 
             if moveDir.Magnitude > 1 then
-                myHRP.AssemblyLinearVelocity = moveDir.Unit * 55
+                myHRP.AssemblyLinearVelocity = moveDir.Unit * 60
             else
                 myHRP.AssemblyLinearVelocity = tVel
             end
