@@ -38,7 +38,6 @@ local State = {
     lastMoveDir=Vector3.new(0,0,0),
     unwalkEnabled=false, stackButtonsHidden=false,
     _prevCarry=30, _prevSpeed=false,
-    -- AUTO TP DOWN
     autoTpDownEnabled=false, autoTpDownY=20,
 }
 
@@ -104,7 +103,7 @@ local setHideButtonsToggle
 local radTB
 local unwalkAnimateRef = nil
 local optimizerDescConn = nil
-local setAutoTpDown  -- forward declare
+local setAutoTpDown
 
 local C = {
     winBg       = Color3.fromRGB(0, 0, 0),
@@ -668,7 +667,6 @@ setUnwalkToggle = makeToggleRow("Unwalk", false, function(on)
     pcall(saveConfig)
 end)
 
--- AUTO TP DOWN toggle + Y trigger input
 setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
     State.autoTpDownEnabled = on
     pcall(saveConfig)
@@ -1025,20 +1023,17 @@ stopDropBrainrot=function()
 end
 
 -- ============================================================
--- BAT AIMBOT
+-- BAT AIMBOT (REPLACED - No Auto Equip, Dark Blue ESP)
 -- ============================================================
-local VYSE_AIMBOT_SPEED  = 60
-local VYSE_MELEE_OFFSET  = 1.7
-local VYSE_HEAD_OFFSET   = Vector3.new(0, 2.6, 0)
-local BAT_SLAP_LIST      = {"Slap Bat", "Bat"}
+local BAT_SLAP_LIST = {"Slap Bat", "Bat"}
 
 local aimbotLockedTarget  = nil
 local aimbotNoTargetSince = nil
 
 local aimbotHighlight = Instance.new("Highlight")
 aimbotHighlight.Name             = "CyberHubAimbotESP"
-aimbotHighlight.FillColor        = Color3.fromRGB(0, 150, 255)
-aimbotHighlight.OutlineColor     = Color3.fromRGB(255, 255, 255)
+aimbotHighlight.FillColor        = Color3.fromRGB(0, 0, 139)       -- Dark blue fill
+aimbotHighlight.OutlineColor     = Color3.fromRGB(0, 100, 255)     -- Lighter blue outline
 aimbotHighlight.FillTransparency = 0.5
 aimbotHighlight.OutlineTransparency = 0
 pcall(function() aimbotHighlight.Parent = CoreGui end)
@@ -1046,7 +1041,6 @@ if not aimbotHighlight.Parent then
     aimbotHighlight.Parent = LP:WaitForChild("PlayerGui")
 end
 
-local playerRespawnTrack = {}
 local function setupPlayerResetDetection()
     if Conns.playerRespawn then return end
     Conns.playerRespawn = Players.PlayerAdded:Connect(function(player)
@@ -1093,28 +1087,10 @@ local function _aimbotTargetValid(tc)
     return hum2 and hrp2 and not tc:FindFirstChildOfClass("ForceField")
 end
 
-local function _aimbotFindBat()
-    local c = LP.Character; if not c then return nil end
-    local bp = LP:FindFirstChildOfClass("Backpack")
-    for _, ch in ipairs(c:GetChildren()) do
-        if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
-    end
-    if bp then
-        for _, ch in ipairs(bp:GetChildren()) do
-            if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
-        end
-    end
-    for _, name in ipairs(BAT_SLAP_LIST) do
-        local t = c:FindFirstChild(name) or (bp and bp:FindFirstChild(name))
-        if t then return t end
-    end
-    return nil
-end
-
 local function _aimbotGetTarget(myHRP)
     if aimbotLockedTarget and _aimbotTargetValid(aimbotLockedTarget) then
-        local hrp = aimbotLockedTarget:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Parent then return hrp, aimbotLockedTarget end
+        local hrp2 = aimbotLockedTarget:FindFirstChild("HumanoidRootPart")
+        if hrp2 and hrp2.Parent then return hrp2, aimbotLockedTarget end
     end
     local best, bestHRP, bestDist = nil, nil, math.huge
     for _, p in ipairs(Players:GetPlayers()) do
@@ -1157,25 +1133,31 @@ startBatAimbot = function()
         local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
         local myH = char:FindFirstChildOfClass("Humanoid"); if not myH or myH.Health <= 0 then return end
         myH.AutoRotate = false
+
         local tHRP, tChar = _aimbotGetTarget(myHRP)
         if tHRP and tChar and tHRP.Parent and tChar.Parent then
-            aimbotNoTargetSince = nil; aimbotHighlight.Adornee = tChar
+            aimbotNoTargetSince = nil
+            aimbotHighlight.Adornee = tChar
             myH:Move(Vector3.new(0,0,0), false)
+
             local tVel = tHRP.AssemblyLinearVelocity
             local predictTime = math.clamp(tVel.Magnitude / 150, 0.05, 0.2)
             local predicted = tHRP.Position + tVel * predictTime
-            local behindOffset = -tHRP.CFrame.LookVector * VYSE_MELEE_OFFSET
-            local standPos = predicted + behindOffset + VYSE_HEAD_OFFSET
+            local dir = predicted - myHRP.Position
+            local dist = dir.Magnitude
+
+            local standPos = dist > 0 and (predicted - dir.Unit * 2.3) or predicted
             local moveDir = standPos - myHRP.Position
+
             local lookTarget = Vector3.new(predicted.X, myHRP.Position.Y, predicted.Z)
             if (lookTarget - myHRP.Position).Magnitude > 0.1 then
-                myHRP.CFrame = CFrame.lookAt(myHRP.Position, lookTarget) * CFrame.Angles(math.rad(-15), 0, 0)
+                myHRP.CFrame = CFrame.new(myHRP.Position, lookTarget)
             end
-            if moveDir.Magnitude > 0.05 then
-                myHRP.AssemblyLinearVelocity = moveDir.Unit * VYSE_AIMBOT_SPEED
+
+            if moveDir.Magnitude > 1 then
+                myHRP.AssemblyLinearVelocity = moveDir.Unit * 55
             else
-                local fwd = myHRP.CFrame.LookVector
-                myHRP.AssemblyLinearVelocity = Vector3.new(fwd.X, 0, fwd.Z).Unit * VYSE_AIMBOT_SPEED
+                myHRP.AssemblyLinearVelocity = tVel
             end
         else
             if not aimbotNoTargetSince then aimbotNoTargetSince = tick() end
@@ -1411,6 +1393,7 @@ applyFPSBoost = function()
         end)
     end)
 end
+
 -- ============================================================
 -- STEAL FUNCTIONS
 -- ============================================================
@@ -1466,7 +1449,6 @@ saveConfig = function()
     data.batCounter=State.batCounterEnabled; data.autoSteal=Steal.AutoStealEnabled
     data.unwalk=State.unwalkEnabled
     data.stackHidden=State.stackButtonsHidden; data.uiLocked=State.uiLocked
-    -- AUTO TP DOWN
     data.autoTpDown=State.autoTpDownEnabled
     data.autoTpDownY=State.autoTpDownY
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
@@ -1510,7 +1492,6 @@ loadConfig = function()
         Steal.AutoStealEnabled=cfg.autoSteal; setInstaGrab(cfg.autoSteal)
         if cfg.autoSteal then pcall(startAutoSteal) else stopAutoSteal() end
     end
-    -- AUTO TP DOWN
     if cfg.autoTpDown ~= nil and setAutoTpDown then
         State.autoTpDownEnabled = cfg.autoTpDown
         setAutoTpDown(cfg.autoTpDown)
@@ -1611,7 +1592,6 @@ RunService.Heartbeat:Connect(function()
         if holding then root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z) end
     end
 
-    -- AUTO TP DOWN: continuously watch Y and teleport down when above threshold
     if State.autoTpDownEnabled then
         if root.Position.Y >= State.autoTpDownY then
             local rot = root.CFrame.Rotation
