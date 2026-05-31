@@ -47,7 +47,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.Unknown,
 }
 
-local BTN_W=70; local BTN_H=40; local BTN_GAP=5; local COLS=2
+local BTN_W=75; local BTN_H=45; local BTN_GAP=5; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
