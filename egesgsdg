@@ -106,6 +106,10 @@ local unwalkAnimateRef = nil
 local optimizerDescConn = nil
 local setAutoTpDown
 
+-- Draggable flags
+local hudDraggable = true
+local vBtnDraggable = true
+
 local C = {
     winBg       = Color3.fromRGB(0, 0, 0),
     winBorder   = Color3.fromRGB(0, 120, 255),
@@ -397,17 +401,23 @@ stealPctLbl.TextXAlignment         = Enum.TextXAlignment.Center
 stealPctLbl.TextYAlignment         = Enum.TextYAlignment.Center
 stealPctLbl.ZIndex                 = 6
 
--- HUD drag
+-- HUD drag (with lock support)
+local function updateDraggables()
+    hudDraggable = not State.uiLocked
+    vBtnDraggable = not State.uiLocked
+end
+
 do
     local dDrag, dStart, dPos = false, nil, nil
     hudFrame.InputBegan:Connect(function(inp)
+        if not hudDraggable then return end
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
             dDrag = true; dStart = inp.Position; dPos = hudFrame.Position
             inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dDrag = false end end)
         end
     end)
     UIS.InputChanged:Connect(function(inp)
-        if not dDrag then return end
+        if not dDrag or not hudDraggable then return end
         if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
             local d = inp.Position - dStart
             hudFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
@@ -921,6 +931,7 @@ lockBtn.MouseLeave:Connect(function()
 end)
 lockBtn.MouseButton1Click:Connect(function()
     State.uiLocked = not State.uiLocked
+    updateDraggables()
     if State.uiLocked then
         lockBtn.Text = "🔒  Lock Positions: ON"
         TweenService:Create(lockBtn,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(0,50,100),TextColor3=Color3.fromRGB(0,200,255)}):Play()
@@ -1002,7 +1013,7 @@ stopBatCounter=function()
 end
 
 -- ============================================================
--- VBTN
+-- VBTN (Close/Open Button)
 -- ============================================================
 local vBtnFrame = Instance.new("Frame", gui)
 vBtnFrame.Name = "CyberHubVBtn"; vBtnFrame.Size = UDim2.new(0,72,0,36)
@@ -1015,25 +1026,46 @@ vBtnLbl.TextColor3 = Color3.fromRGB(255,255,255); vBtnLbl.Font = Enum.Font.Gotha
 vBtnLbl.TextSize = 14; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
 vBtnLbl.TextStrokeColor3 = Color3.fromRGB(0,40,120); vBtnLbl.ZIndex = 21
-local vDragging,vDragInput,vDragStart,vStartPos=false,nil,nil,nil; local vMoved=false
+
+-- VBtn drag logic (with lock support)
+local vDragging, vDragInput, vDragStart, vStartPos = false, nil, nil, nil
+local vMoved = false
+
 vBtnFrame.InputBegan:Connect(function(inp)
-    if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
-    vDragging=true; vMoved=false; vDragStart=inp.Position; vStartPos=vBtnFrame.Position
+    if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+    vDragging = true
+    vMoved = false
+    vDragStart = inp.Position
+    vStartPos = vBtnFrame.Position
     inp.Changed:Connect(function()
-        if inp.UserInputState==Enum.UserInputState.End then
-            if not vMoved then State.guiVisible=not State.guiVisible; mainOuter.Visible=State.guiVisible end
-            vDragging=false; vMoved=false
+        if inp.UserInputState == Enum.UserInputState.End then
+            if not vMoved then
+                if not State.uiLocked then
+                    State.guiVisible = not State.guiVisible
+                    mainOuter.Visible = State.guiVisible
+                end
+            end
+            vDragging = false
+            vMoved = false
         end
     end)
 end)
+
 vBtnFrame.InputChanged:Connect(function(inp)
-    if inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch then vDragInput=inp end
+    if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+        vDragInput = inp
+    end
 end)
+
 UIS.InputChanged:Connect(function(inp)
-    if inp~=vDragInput or not vDragging then return end
-    local dx=inp.Position.X-vDragStart.X; local dy=inp.Position.Y-vDragStart.Y
-    if math.abs(dx)>4 or math.abs(dy)>4 then vMoved=true end
-    if vMoved then vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy) end
+    if inp ~= vDragInput or not vDragging then return end
+    if not vBtnDraggable then return end
+    local dx = inp.Position.X - vDragStart.X
+    local dy = inp.Position.Y - vDragStart.Y
+    if math.abs(dx) > 4 or math.abs(dy) > 4 then vMoved = true end
+    if vMoved then
+        vBtnFrame.Position = UDim2.new(vStartPos.X.Scale, vStartPos.X.Offset + dx, vStartPos.Y.Scale, vStartPos.Y.Offset + dy)
+    end
 end)
 
 -- stealRadBox sync loop
@@ -1640,6 +1672,7 @@ loadConfig = function()
     end
     if cfg.uiLocked then
         State.uiLocked=true
+        updateDraggables()
         if lockBtn then
             lockBtn.Text="🔒  Lock Positions: ON"
             lockBtn.BackgroundColor3=Color3.fromRGB(0,50,100)
