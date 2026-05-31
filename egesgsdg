@@ -2,6 +2,7 @@
 -- CYBER HUB v1.0 - All Features in 1 Tab (Black & Blue Edition)
 -- WITH AVATAR & USERNAME DISPLAY AT THE TOP
 -- WITH UPDATED AIMBOT (FASTER + BETTER TRACKING + RESET DETECTION)
+-- WITH HUD BAR + STEAL BAR
 -- ============================================================
 
 local Players         = game:GetService("Players")
@@ -68,7 +69,7 @@ local function getDefaultStackPos(i)
 end
 
 local Steal = {
-    AutoStealEnabled=false, StealRadius=20, StealDuration=0.25,
+    AutoStealEnabled=false, StealRadius=60, StealDuration=1.3,
     Data={}, plotCache={}, plotCacheTime={}, cachedPrompts={}, promptCacheTime=0,
 }
 
@@ -169,7 +170,7 @@ local C = {
     divider     = Color3.fromRGB(0, 50, 100),
 }
 
-for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberBypass","CyberProfileGui"}) do
+for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberBypass","CyberProfileGui","CyberHubHUD"}) do
     pcall(function() local o=game:GetService("CoreGui"):FindFirstChild(name); if o then o:Destroy() end end)
     pcall(function() local o=LP:WaitForChild("PlayerGui"):FindFirstChild(name); if o then o:Destroy() end end)
 end
@@ -266,6 +267,175 @@ local function makeStackDraggable(frame,onTap)
     end)
 end
 
+-- ============================================================
+-- HUD BAR
+-- ============================================================
+local hudGui = Instance.new("ScreenGui")
+hudGui.Name           = "CyberHubHUD"
+hudGui.ResetOnSpawn   = false
+hudGui.DisplayOrder   = 20
+hudGui.IgnoreGuiInset = true
+hudGui.Parent         = LP:WaitForChild("PlayerGui")
+
+local hudFrame = Instance.new("Frame", hudGui)
+hudFrame.Name                   = "HudFrame"
+hudFrame.Size                   = UDim2.new(0, 260, 0, 30)
+hudFrame.Position               = UDim2.new(0.5, -125, 0, 8)
+hudFrame.BackgroundColor3       = Color3.fromRGB(3, 3, 12)
+hudFrame.BackgroundTransparency = 0.08
+hudFrame.Active                 = true
+hudFrame.BorderSizePixel        = 0
+mkCorner(hudFrame, 10)
+mkYogaBorder(hudFrame, 1.5, 3.0, 140)
+
+local hudFpsLbl = Instance.new("TextLabel", hudFrame)
+hudFpsLbl.Size                   = UDim2.new(0, 28, 1, 0)
+hudFpsLbl.Position               = UDim2.new(0, 20, 0, 0)
+hudFpsLbl.BackgroundTransparency = 1
+hudFpsLbl.Text                   = "FPS"
+hudFpsLbl.TextColor3             = Color3.fromRGB(80, 130, 200)
+hudFpsLbl.Font                   = Enum.Font.GothamBold
+hudFpsLbl.TextSize               = 10
+hudFpsLbl.TextXAlignment         = Enum.TextXAlignment.Left
+hudFpsLbl.ZIndex                 = 3
+
+local hudFpsVal = Instance.new("TextLabel", hudFrame)
+hudFpsVal.Size                   = UDim2.new(0, 38, 1, 0)
+hudFpsVal.Position               = UDim2.new(0, 55, 0, 0)
+hudFpsVal.BackgroundTransparency = 1
+hudFpsVal.Text                   = "0"
+hudFpsVal.TextColor3             = Color3.fromRGB(255, 255, 255)
+hudFpsVal.Font                   = Enum.Font.GothamBlack
+hudFpsVal.TextSize               = 12
+hudFpsVal.TextXAlignment         = Enum.TextXAlignment.Left
+hudFpsVal.ZIndex                 = 3
+
+local hudDiv1 = Instance.new("Frame", hudFrame)
+hudDiv1.Size                   = UDim2.new(0, 1, 0, 18)
+hudDiv1.Position               = UDim2.new(0, 85, 0.5, -9)
+hudDiv1.BackgroundColor3       = Color3.fromRGB(0, 80, 180)
+hudDiv1.BackgroundTransparency = 0.4
+hudDiv1.BorderSizePixel        = 0
+hudDiv1.ZIndex                 = 3
+
+local hudTitle = Instance.new("TextLabel", hudFrame)
+hudTitle.Size                   = UDim2.new(0, 100, 1, 0)
+hudTitle.Position               = UDim2.new(0, 95, 0, 0)
+hudTitle.BackgroundTransparency = 1
+hudTitle.Text                   = "CYBER HUB"
+hudTitle.TextColor3             = Color3.fromRGB(0, 150, 255)
+hudTitle.Font                   = Enum.Font.GothamBlack
+hudTitle.TextSize               = 12
+hudTitle.TextXAlignment         = Enum.TextXAlignment.Left
+hudTitle.TextStrokeTransparency = 0.5
+hudTitle.TextStrokeColor3       = Color3.fromRGB(0, 40, 120)
+hudTitle.ZIndex                 = 3
+
+local hudDiv2 = Instance.new("Frame", hudFrame)
+hudDiv2.Size                   = UDim2.new(0, 1, 0, 18)
+hudDiv2.Position               = UDim2.new(0, 180, 0.5, -9)
+hudDiv2.BackgroundColor3       = Color3.fromRGB(0, 80, 180)
+hudDiv2.BackgroundTransparency = 0.4
+hudDiv2.BorderSizePixel        = 0
+hudDiv2.ZIndex                 = 3
+
+local hudPingLbl = Instance.new("TextLabel", hudFrame)
+hudPingLbl.Size                   = UDim2.new(0, 34, 1, 0)
+hudPingLbl.Position               = UDim2.new(0, 185, 0, 0)
+hudPingLbl.BackgroundTransparency = 1
+hudPingLbl.Text                   = "PING"
+hudPingLbl.TextColor3             = Color3.fromRGB(80, 130, 200)
+hudPingLbl.Font                   = Enum.Font.GothamBold
+hudPingLbl.TextSize               = 10
+hudPingLbl.TextXAlignment         = Enum.TextXAlignment.Left
+hudPingLbl.ZIndex                 = 3
+
+local hudPingVal = Instance.new("TextLabel", hudFrame)
+hudPingVal.Size                   = UDim2.new(0, 60, 1, 0)
+hudPingVal.Position               = UDim2.new(0, 215, 0, 0)
+hudPingVal.BackgroundTransparency = 1
+hudPingVal.Text                   = "0ms"
+hudPingVal.TextColor3             = Color3.fromRGB(255, 255, 255)
+hudPingVal.Font                   = Enum.Font.GothamBlack
+hudPingVal.TextSize               = 12
+hudPingVal.TextXAlignment         = Enum.TextXAlignment.Left
+hudPingVal.ZIndex                 = 3
+
+-- Steal / Progress bar attached below HUD
+local pTrack = Instance.new("Frame", hudFrame)
+pTrack.Size             = UDim2.new(1, 0, 0, 10)
+pTrack.Position         = UDim2.new(0, 0, 1, 4)
+pTrack.BackgroundColor3 = Color3.fromRGB(0, 10, 30)
+pTrack.BorderSizePixel  = 0
+pTrack.ZIndex           = 3
+mkCorner(pTrack, 3)
+mkStroke(pTrack, Color3.fromRGB(0, 40, 100), 1)
+
+local progressFill = Instance.new("Frame", pTrack)
+progressFill.Size             = UDim2.new(0, 0, 1, 0)
+progressFill.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
+progressFill.BorderSizePixel  = 0
+progressFill.ZIndex           = 4
+mkCorner(progressFill, 3)
+
+local fillGrad = Instance.new("UIGradient", progressFill)
+fillGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 60, 160)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 160, 255)),
+    ColorSequenceKeypoint.new(1,   Color3.fromRGB(0, 60, 160)),
+})
+table.insert(yogaBorders, {g = fillGrad, speed = 80})
+
+local stealPctLbl = Instance.new("TextLabel", pTrack)
+stealPctLbl.Size                   = UDim2.new(1, 0, 1, 0)
+stealPctLbl.BackgroundTransparency = 1
+stealPctLbl.Text                   = "0%"
+stealPctLbl.TextColor3             = Color3.fromRGB(255, 255, 255)
+stealPctLbl.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+stealPctLbl.TextSize               = 8
+stealPctLbl.TextXAlignment         = Enum.TextXAlignment.Center
+stealPctLbl.TextYAlignment         = Enum.TextYAlignment.Center
+stealPctLbl.ZIndex                 = 6
+
+-- HUD drag
+do
+    local dDrag, dStart, dPos = false, nil, nil
+    hudFrame.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            dDrag = true; dStart = inp.Position; dPos = hudFrame.Position
+            inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dDrag = false end end)
+        end
+    end)
+    UIS.InputChanged:Connect(function(inp)
+        if not dDrag then return end
+        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+            local d = inp.Position - dStart
+            hudFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
+        end
+    end)
+end
+
+-- HUD FPS/Ping updater
+do
+    local _fc = 0; local _lt = tick()
+    RunService.RenderStepped:Connect(function()
+        _fc += 1
+        local now = tick()
+        if now - _lt >= 1 then
+            hudFpsVal.Text = tostring(math.floor(_fc / (now - _lt)))
+            _fc = 0; _lt = now
+        end
+        local ping = 0
+        pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+        if ping == 0 then pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["DataPing"]:GetValue()) end) end
+        if ping == 0 then pcall(function() ping = math.floor(LP:GetNetworkPing() * 1000) end) end
+        hudPingVal.Text = tostring(ping) .. "ms"
+    end)
+end
+
+-- ============================================================
+-- MAIN WINDOW
+-- ============================================================
 local WIN_W = 260; local WIN_H = 340; local TITLE_H = 65
 
 local mainOuter = Instance.new("Frame", gui)
@@ -866,39 +1036,7 @@ UIS.InputChanged:Connect(function(inp)
     if vMoved then vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy) end
 end)
 
--- ============================================================
--- INFO BAR
--- ============================================================
-local infoBar = Instance.new("Frame", gui)
-infoBar.Size = UDim2.new(0,230,0,36); infoBar.Position = UDim2.new(0.5,-115,1,-50)
-infoBar.BackgroundColor3 = Color3.fromRGB(1,1,10); infoBar.BackgroundTransparency = 0
-infoBar.BorderSizePixel = 0; infoBar.Active = true
-mkCorner(infoBar, 12); mkYogaBorder(infoBar, 1.5, 3.0, 140); makeDraggable(infoBar)
-
-local pTrack = Instance.new("Frame", infoBar)
-pTrack.Size = UDim2.new(1,-22,0,8); pTrack.Position = UDim2.new(0,11,0.5,-4)
-pTrack.BackgroundColor3 = Color3.fromRGB(0,10,30); pTrack.BorderSizePixel = 0; pTrack.ZIndex = 3
-mkCorner(pTrack, 4); mkStroke(pTrack, Color3.fromRGB(0,40,100), 1)
-
-local progressFill = Instance.new("Frame", pTrack)
-progressFill.Size = UDim2.new(0,0,1,0); progressFill.BackgroundColor3 = Color3.fromRGB(0,80,180)
-progressFill.BorderSizePixel = 0; progressFill.ZIndex = 4; mkCorner(progressFill, 4)
-local fillGrad = Instance.new("UIGradient", progressFill)
-fillGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(0,60,160)),
-    ColorSequenceKeypoint.new(0.5,Color3.fromRGB(0,160,255)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(0,60,160)),
-})
-table.insert(yogaBorders, {g=fillGrad, speed=80})
-
-local stealPctLbl = Instance.new("TextLabel", pTrack)
-stealPctLbl.Size = UDim2.new(1,0,1,0); stealPctLbl.Position = UDim2.new(0,0,0,0)
-stealPctLbl.BackgroundTransparency = 1; stealPctLbl.Text = "0%"
-stealPctLbl.TextColor3 = Color3.fromRGB(255,255,255)
-stealPctLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-stealPctLbl.TextSize = 8; stealPctLbl.TextXAlignment = Enum.TextXAlignment.Center
-stealPctLbl.TextYAlignment = Enum.TextYAlignment.Center; stealPctLbl.ZIndex = 6
-
+-- stealRadBox sync loop
 do
     task.spawn(function()
         while task.wait(0.5) do
@@ -1023,17 +1161,15 @@ stopDropBrainrot=function()
 end
 
 -- ============================================================
--- BAT AIMBOT (REPLACED - No Auto Equip, Dark Blue ESP)
+-- BAT AIMBOT
 -- ============================================================
-local BAT_SLAP_LIST = {"Slap Bat", "Bat"}
-
 local aimbotLockedTarget  = nil
 local aimbotNoTargetSince = nil
 
 local aimbotHighlight = Instance.new("Highlight")
 aimbotHighlight.Name             = "CyberHubAimbotESP"
-aimbotHighlight.FillColor        = Color3.fromRGB(0, 0, 139)       -- Dark blue fill
-aimbotHighlight.OutlineColor     = Color3.fromRGB(0, 100, 255)     -- Lighter blue outline
+aimbotHighlight.FillColor        = Color3.fromRGB(0, 0, 139)
+aimbotHighlight.OutlineColor     = Color3.fromRGB(0, 100, 255)
 aimbotHighlight.FillTransparency = 0.5
 aimbotHighlight.OutlineTransparency = 0
 pcall(function() aimbotHighlight.Parent = CoreGui end)
@@ -1570,9 +1706,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ============================================================
--- INFINITE JUMP
--- ============================================================
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
     local c = LP.Character; if not c then return end
