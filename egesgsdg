@@ -323,13 +323,29 @@ hudTitle.Size                   = UDim2.new(0, 100, 1, 0)
 hudTitle.Position               = UDim2.new(0, 95, 0, 0)
 hudTitle.BackgroundTransparency = 1
 hudTitle.Text                   = "CYBER HUB"
-hudTitle.TextColor3             = Color3.fromRGB(0, 150, 255)
-hudTitle.Font                   = Enum.Font.GothamBlack
+hudTitle.TextColor3             = Color3.fromRGB(255,255,255)
+hudTitle.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
 hudTitle.TextSize               = 12
 hudTitle.TextXAlignment         = Enum.TextXAlignment.Left
-hudTitle.TextStrokeTransparency = 0.5
-hudTitle.TextStrokeColor3       = Color3.fromRGB(0, 40, 120)
+hudTitle.TextStrokeTransparency = 0.1
+hudTitle.TextStrokeColor3       = Color3.new(0,0,0)
 hudTitle.ZIndex                 = 3
+local hudTitleGrad = Instance.new("UIGradient", hudTitle)
+hudTitleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
+    ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
+    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+})
+hudTitleGrad.Rotation = 0
+task.spawn(function()
+    while hudTitle and hudTitle.Parent do
+        TweenService:Create(hudTitleGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
+        task.wait(1.6)
+        hudTitleGrad.Rotation = 0
+    end
+end)
 
 local hudDiv2 = Instance.new("Frame", hudFrame)
 hudDiv2.Size                   = UDim2.new(0, 1, 0, 18)
@@ -401,13 +417,14 @@ stealPctLbl.ZIndex                 = 6
 do
     local dDrag, dStart, dPos = false, nil, nil
     hudFrame.InputBegan:Connect(function(inp)
+        if State.uiLocked then return end
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
             dDrag = true; dStart = inp.Position; dPos = hudFrame.Position
             inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dDrag = false end end)
         end
     end)
     UIS.InputChanged:Connect(function(inp)
-        if not dDrag then return end
+        if not dDrag or State.uiLocked then return end
         if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
             local d = inp.Position - dStart
             hudFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
@@ -447,6 +464,9 @@ mkCorner(mainOuter, 14)
 mkYogaBorder(mainOuter, 2.5, 4.5, 160)
 makeDraggable(mainOuter)
 
+local mainScale = Instance.new("UIScale", mainOuter)
+mainScale.Scale = 1
+
 local bgImg = Instance.new("ImageLabel", mainOuter)
 bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundColor3 = C.winBg
 bgImg.Image = LOGO_ID; bgImg.ScaleType = Enum.ScaleType.Crop
@@ -468,11 +488,28 @@ AvatarImage.ZIndex = 6; mkCorner(AvatarImage, 999); mkStroke(AvatarImage, Color3
 
 local cyberHubTitle = Instance.new("TextLabel", ProfileFrame)
 cyberHubTitle.Size = UDim2.new(1,0,1,0); cyberHubTitle.BackgroundTransparency = 1
-cyberHubTitle.Text = "CYBER HUB"; cyberHubTitle.TextColor3 = Color3.fromRGB(0,150,255)
-cyberHubTitle.Font = Enum.Font.GothamBlack; cyberHubTitle.TextSize = 20
+cyberHubTitle.Text = "CYBER HUB"; cyberHubTitle.TextColor3 = Color3.fromRGB(255,255,255)
+cyberHubTitle.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
+cyberHubTitle.TextSize = 20
 cyberHubTitle.TextXAlignment = Enum.TextXAlignment.Center; cyberHubTitle.TextYAlignment = Enum.TextYAlignment.Center
-cyberHubTitle.ZIndex = 6; cyberHubTitle.TextStrokeTransparency = 0.5
-cyberHubTitle.TextStrokeColor3 = Color3.fromRGB(0,80,200)
+cyberHubTitle.ZIndex = 6; cyberHubTitle.TextStrokeTransparency = 0.1
+cyberHubTitle.TextStrokeColor3 = Color3.new(0,0,0)
+local titleGrad = Instance.new("UIGradient", cyberHubTitle)
+titleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
+    ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
+    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+})
+titleGrad.Rotation = 0
+task.spawn(function()
+    while cyberHubTitle and cyberHubTitle.Parent do
+        TweenService:Create(titleGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
+        task.wait(1.6)
+        titleGrad.Rotation = 0
+    end
+end)
 
 local titleDiv = Instance.new("Frame", mainOuter)
 titleDiv.Size = UDim2.new(1,0,0,1); titleDiv.Position = UDim2.new(0,0,0,TITLE_H)
@@ -860,75 +897,111 @@ makeGap(8)
 
 local savedStackPositions = {}
 
-local rWrap = Instance.new("Frame", currentPage)
-rWrap.Size = UDim2.new(1,0,0,46); rWrap.BackgroundTransparency = 1
-rWrap.BorderSizePixel = 0; rWrap.LayoutOrder = LO()
-local resetBtn = Instance.new("TextButton", rWrap)
-resetBtn.Size = UDim2.new(1,-28,0,32); resetBtn.Position = UDim2.new(0,14,0,7)
-resetBtn.BackgroundColor3 = C.btnBg; resetBtn.BorderSizePixel = 0
-resetBtn.Text = "↺  Reset Button Positions"; resetBtn.TextColor3 = C.btnTxt
-resetBtn.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-resetBtn.TextSize = 12; resetBtn.ZIndex = 5; mkCorner(resetBtn, 6); mkStroke(resetBtn, C.btnBorder, 1)
-resetBtn.MouseEnter:Connect(function() TweenService:Create(resetBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnHov}):Play() end)
-resetBtn.MouseLeave:Connect(function() TweenService:Create(resetBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnBg}):Play() end)
-resetBtn.MouseButton1Click:Connect(function()
+-- fancy button builder (dark blue style)
+local function makeFancyButton(label, ACC, DK, GLOW, onClick)
+    local SAVE_H = 36
+    local w = Instance.new("Frame", currentPage)
+    w.Size = UDim2.new(1,0,0,SAVE_H+6); w.BackgroundTransparency = 1
+    w.BorderSizePixel = 0; w.LayoutOrder = LO()
+    local glowFr = Instance.new("Frame", w)
+    glowFr.Size = UDim2.new(1,-10,1,-2); glowFr.Position = UDim2.new(0,5,0,1)
+    glowFr.BackgroundColor3 = DK; glowFr.BackgroundTransparency = 0.5; glowFr.BorderSizePixel = 0
+    mkCorner(glowFr, 11)
+    local btn = Instance.new("TextButton", w)
+    btn.Size = UDim2.new(1,-14,0,SAVE_H); btn.Position = UDim2.new(0,7,0,3)
+    btn.BackgroundColor3 = Color3.fromRGB(6,6,20); btn.BorderSizePixel = 0
+    btn.Text = ""; btn.ZIndex = 5; mkCorner(btn, 9)
+    mkYogaBorder(btn, 1.2, 2.4, 160)
+    local fill = Instance.new("Frame", btn)
+    fill.Size = UDim2.new(1,0,1,0); fill.BackgroundColor3 = DK
+    fill.BackgroundTransparency = 0.35; fill.BorderSizePixel = 0; fill.ZIndex = 1
+    mkCorner(fill, 9)
+    local fillGrad = Instance.new("UIGradient", fill)
+    fillGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   DK),
+        ColorSequenceKeypoint.new(0.5, ACC),
+        ColorSequenceKeypoint.new(1,   DK),
+    })
+    fillGrad.Rotation = 135
+    local shimmer = Instance.new("Frame", btn)
+    shimmer.Size = UDim2.new(0,18,1,0); shimmer.Position = UDim2.new(0,-18,0,0)
+    shimmer.BackgroundColor3 = Color3.fromRGB(255,255,255); shimmer.BackgroundTransparency = 0.85
+    shimmer.BorderSizePixel = 0; shimmer.ZIndex = 6; mkCorner(shimmer, 4)
+    local shimGrad = Instance.new("UIGradient", shimmer)
+    shimGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   Color3.fromRGB(0,0,0)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1,   Color3.fromRGB(0,0,0)),
+    })
+    shimGrad.Rotation = 90
+    local function runShimmer()
+        shimmer.Position = UDim2.new(0,-18,0,0)
+        TweenService:Create(shimmer, TweenInfo.new(0.55,Enum.EasingStyle.Quad,Enum.EasingDirection.In), {Position=UDim2.new(1,4,0,0)}):Play()
+    end
+    local txtLbl = Instance.new("TextLabel", btn)
+    txtLbl.Size = UDim2.new(1,0,1,0); txtLbl.BackgroundTransparency = 1
+    txtLbl.Text = label; txtLbl.TextColor3 = GLOW
+    txtLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+    txtLbl.TextSize = 12; txtLbl.ZIndex = 7; txtLbl.TextXAlignment = Enum.TextXAlignment.Center
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(fill, TweenInfo.new(0.15), {BackgroundTransparency=0.15}):Play()
+        TweenService:Create(txtLbl, TweenInfo.new(0.15), {TextColor3=Color3.fromRGB(255,255,255)}):Play()
+        runShimmer()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(fill, TweenInfo.new(0.2), {BackgroundTransparency=0.35}):Play()
+        TweenService:Create(txtLbl, TweenInfo.new(0.2), {TextColor3=GLOW}):Play()
+    end)
+    btn.MouseButton1Down:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.08), {Size=UDim2.new(1,-18,0,SAVE_H-3), Position=UDim2.new(0,9,0,4.5)}):Play()
+    end)
+    btn.MouseButton1Up:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.12,Enum.EasingStyle.Back), {Size=UDim2.new(1,-14,0,SAVE_H), Position=UDim2.new(0,7,0,3)}):Play()
+    end)
+    btn.MouseButton1Click:Connect(function() if onClick then onClick(txtLbl, GLOW) end end)
+    return txtLbl
+end
+
+local DB_ACC  = Color3.fromRGB(0,  60, 180)
+local DB_DK   = Color3.fromRGB(0,  15,  55)
+local DB_GLOW = Color3.fromRGB(80, 180, 255)
+
+-- Reset Button Positions
+local resetTxt = makeFancyButton("Reset Button Positions", DB_ACC, DB_DK, DB_GLOW, function(lbl, glow)
     for i, def in ipairs(stackDefs) do
         local wrapper = stackWrappers[def.key]
         if wrapper then TweenService:Create(wrapper,TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=getDefaultStackPos(i)}):Play() end
     end
-    resetBtn.Text = "✓  Positions Reset!"
-    task.delay(1.8, function() if resetBtn and resetBtn.Parent then resetBtn.Text="↺  Reset Button Positions" end end)
+    lbl.Text = "Positions Reset!"
+    task.delay(1.8, function() if lbl and lbl.Parent then lbl.Text="Reset Button Positions"; lbl.TextColor3=glow end end)
 end)
 
 makeGap(4)
 
-local sWrap = Instance.new("Frame", currentPage)
-sWrap.Size = UDim2.new(1,0,0,46); sWrap.BackgroundTransparency = 1
-sWrap.BorderSizePixel = 0; sWrap.LayoutOrder = LO()
-local saveBtn = Instance.new("TextButton", sWrap)
-saveBtn.Size = UDim2.new(1,-28,0,32); saveBtn.Position = UDim2.new(0,14,0,7)
-saveBtn.BackgroundColor3 = C.btnBg; saveBtn.BorderSizePixel = 0
-saveBtn.Text = "💾  Save Button Positions"; saveBtn.TextColor3 = C.btnTxt
-saveBtn.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-saveBtn.TextSize = 12; saveBtn.ZIndex = 5; mkCorner(saveBtn, 6); mkStroke(saveBtn, C.btnBorder, 1)
-saveBtn.MouseEnter:Connect(function() TweenService:Create(saveBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnHov}):Play() end)
-saveBtn.MouseLeave:Connect(function() TweenService:Create(saveBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnBg}):Play() end)
-saveBtn.MouseButton1Click:Connect(function()
+-- Save Button Positions
+local saveTxt = makeFancyButton("Save Button Positions", DB_ACC, DB_DK, DB_GLOW, function(lbl, glow)
     for _, def in ipairs(stackDefs) do
         local wrapper = stackWrappers[def.key]
         if wrapper then savedStackPositions[def.key] = wrapper.Position end
     end
-    saveBtn.Text = "✓  Positions Saved!"
-    task.delay(1.8, function() if saveBtn and saveBtn.Parent then saveBtn.Text="💾  Save Button Positions" end end)
+    lbl.Text = "Positions Saved!"
+    task.delay(1.8, function() if lbl and lbl.Parent then lbl.Text="Save Button Positions"; lbl.TextColor3=glow end end)
 end)
 
 makeGap(4)
 
-local lWrap = Instance.new("Frame", currentPage)
-lWrap.Size = UDim2.new(1,0,0,46); lWrap.BackgroundTransparency = 1
-lWrap.BorderSizePixel = 0; lWrap.LayoutOrder = LO()
-lockBtn = Instance.new("TextButton", lWrap)
-lockBtn.Size = UDim2.new(1,-28,0,32); lockBtn.Position = UDim2.new(0,14,0,7)
-lockBtn.BackgroundColor3 = C.btnBg; lockBtn.BorderSizePixel = 0
-lockBtn.Text = "🔓  Lock Positions: OFF"; lockBtn.TextColor3 = C.btnTxt
-lockBtn.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-lockBtn.TextSize = 12; lockBtn.ZIndex = 5; mkCorner(lockBtn, 6); mkStroke(lockBtn, C.btnBorder, 1)
-lockBtn.MouseEnter:Connect(function()
-    if not State.uiLocked then TweenService:Create(lockBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnHov}):Play() end
-end)
-lockBtn.MouseLeave:Connect(function()
-    if not State.uiLocked then TweenService:Create(lockBtn,TweenInfo.new(0.1),{BackgroundColor3=C.btnBg}):Play() end
-end)
-lockBtn.MouseButton1Click:Connect(function()
+-- Lock Positions
+local lockTxt = makeFancyButton("Lock Positions: OFF", DB_ACC, DB_DK, DB_GLOW, function(lbl, glow)
     State.uiLocked = not State.uiLocked
     if State.uiLocked then
-        lockBtn.Text = "🔒  Lock Positions: ON"
-        TweenService:Create(lockBtn,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(0,50,100),TextColor3=Color3.fromRGB(0,200,255)}):Play()
+        lbl.Text = "Lock Positions: ON"
+        lbl.TextColor3 = Color3.fromRGB(0,220,255)
     else
-        lockBtn.Text = "🔓  Lock Positions: OFF"
-        TweenService:Create(lockBtn,TweenInfo.new(0.15),{BackgroundColor3=C.btnBg,TextColor3=C.btnTxt}):Play()
+        lbl.Text = "Lock Positions: OFF"
+        lbl.TextColor3 = glow
     end
 end)
+lockBtn = lockTxt and lockTxt.Parent
 
 makeGap(10)
 
@@ -1004,13 +1077,33 @@ end
 -- ============================================================
 -- VBTN
 -- ============================================================
+local _guiAnimating = false
+local function showGui()
+    if _guiAnimating then return end
+    _guiAnimating = true
+    mainOuter.Visible = true
+    mainScale.Scale = 0.85
+    TweenService:Create(mainScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    task.delay(0.22, function() _guiAnimating = false end)
+end
+local function hideGui()
+    if _guiAnimating then return end
+    _guiAnimating = true
+    TweenService:Create(mainScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0.85}):Play()
+    task.delay(0.16, function()
+        mainOuter.Visible = false
+        mainScale.Scale = 1
+        _guiAnimating = false
+    end)
+end
+
 local vBtnFrame = Instance.new("Frame", gui)
 vBtnFrame.Name = "CyberHubVBtn"; vBtnFrame.Size = UDim2.new(0,72,0,36)
 vBtnFrame.Position = UDim2.new(0,14,0.5,-18); vBtnFrame.BackgroundColor3 = C.accent
 vBtnFrame.BorderSizePixel = 0; vBtnFrame.Active = true; vBtnFrame.ZIndex = 20
 mkCorner(vBtnFrame, 8); mkYogaBorder(vBtnFrame, 1.2, 2.5, 140)
 local vBtnLbl = Instance.new("TextLabel", vBtnFrame)
-vBtnLbl.Size = UDim2.new(1,0,1,0); vBtnLbl.BackgroundTransparency = 1; vBtnLbl.Text = "CYBER"
+vBtnLbl.Size = UDim2.new(1,0,1,0); vBtnLbl.BackgroundTransparency = 1; vBtnLbl.Text = "CLOSE"
 vBtnLbl.TextColor3 = Color3.fromRGB(255,255,255); vBtnLbl.Font = Enum.Font.GothamBlack
 vBtnLbl.TextSize = 14; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
@@ -1021,7 +1114,7 @@ vBtnFrame.InputBegan:Connect(function(inp)
     vDragging=true; vMoved=false; vDragStart=inp.Position; vStartPos=vBtnFrame.Position
     inp.Changed:Connect(function()
         if inp.UserInputState==Enum.UserInputState.End then
-            if not vMoved then State.guiVisible=not State.guiVisible; mainOuter.Visible=State.guiVisible end
+            if not vMoved then State.guiVisible=not State.guiVisible; if State.guiVisible then showGui(); vBtnLbl.Text="CLOSE" else hideGui(); vBtnLbl.Text="OPEN" end end
             vDragging=false; vMoved=false
         end
     end)
@@ -1291,7 +1384,7 @@ startBatAimbot = function()
             end
 
             if moveDir.Magnitude > 1 then
-                myHRP.AssemblyLinearVelocity = moveDir.Unit * 55
+                myHRP.AssemblyLinearVelocity = moveDir.Unit * 60
             else
                 myHRP.AssemblyLinearVelocity = tVel
             end
@@ -1332,11 +1425,25 @@ local function useMedusaCounter()
     if tick()-State.medusaLastUsed<MEDUSA_COOLDOWN then return end
     local c=LP.Character; if not c then return end
     State.medusaDebounce=true
+    local hum2=c:FindFirstChildOfClass("Humanoid")
+    for _,t in ipairs(c:GetChildren()) do
+        if t:IsA("Tool") and t.Name:lower():find("bat") then
+            if hum2 then pcall(function() hum2:UnequipTools() end) end
+            break
+        end
+    end
     local med=findMedusa(); if not med then State.medusaDebounce=false; return end
-    if med.Parent~=c then local hum2=c:FindFirstChildOfClass("Humanoid"); if hum2 then pcall(function() hum2:EquipTool(med) end) end end
-    pcall(function() med:Activate() end); pcall(function() med:Activate() end); pcall(function() med:Activate() end)
+    -- equip in parallel so activates fire without waiting
+    if med.Parent~=c then
+        task.spawn(function() if hum2 then pcall(function() hum2:EquipTool(med) end) end end)
+    end
+    -- blast activates immediately for fastest possible counter
+    for _=1,6 do pcall(function() med:Activate() end) end
+    task.spawn(function()
+        for _=1,6 do task.wait(); pcall(function() med:Activate() end) end
+    end)
     State.medusaLastUsed=tick()
-    task.delay(0.05, function() State.medusaDebounce=false end)
+    task.delay(0.03, function() State.medusaDebounce=false end)
 end
 local function onAnchorChanged(part)
     return part:GetPropertyChangedSignal("Anchored"):Connect(function()
@@ -1560,7 +1667,7 @@ local function executeSteal(prompt)
         local ok=false; pcall(function() if not data.useFallback then for _,fn in ipairs(data.hold) do task.spawn(fn) end; task.wait(Steal.StealDuration); for _,fn in ipairs(data.trigger) do task.spawn(fn) end; ok=true end end)
         if not ok and fireproximityprompt then pcall(function() fireproximityprompt(prompt); ok=true end) end
         if not ok then pcall(function() prompt:InputHoldBegin(); task.wait(Steal.StealDuration); prompt:InputHoldEnd() end) end
-        task.wait(Steal.StealDuration*0.3); if Conns.progress then Conns.progress:Disconnect() end; resetProgressBar(); task.wait(0.05); data.ready=true; State.isStealing=false
+        if Conns.progress then Conns.progress:Disconnect() end; resetProgressBar(); data.ready=true; State.isStealing=false
     end)
 end
 
@@ -1678,9 +1785,25 @@ local function setupChar(char)
         speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
         speedBillLbl.TextScaled=true; speedBillLbl.TextStrokeTransparency=0.1; speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
         local lbl2=Instance.new("TextLabel",bb); lbl2.Size=UDim2.new(1,0,0,24); lbl2.Position=UDim2.new(0,0,0,28)
-        lbl2.BackgroundTransparency=1; lbl2.Text="CYBER HUB"; lbl2.TextColor3=Color3.fromRGB(0,120,255)
+        lbl2.BackgroundTransparency=1; lbl2.Text="CYBER HUB"; lbl2.TextColor3=Color3.fromRGB(255,255,255)
         lbl2.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
         lbl2.TextScaled=true; lbl2.TextStrokeTransparency=0.1; lbl2.TextStrokeColor3=Color3.new(0,0,0)
+        local billGrad=Instance.new("UIGradient",lbl2)
+        billGrad.Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
+            ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
+            ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
+            ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
+            ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+        })
+        billGrad.Rotation=0
+        task.spawn(function()
+            while lbl2 and lbl2.Parent do
+                TweenService:Create(billGrad,TweenInfo.new(1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Rotation=360}):Play()
+                task.wait(1.6)
+                billGrad.Rotation=0
+            end
+        end)
     end
     if Conns.unwalk then Conns.unwalk:Disconnect(); Conns.unwalk = nil end
     unwalkAnimateRef = nil
@@ -1710,7 +1833,9 @@ UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
     local c = LP.Character; if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
-    if root then root.Velocity = Vector3.new(root.Velocity.X, 53, root.Velocity.Z) end
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 53, root.AssemblyLinearVelocity.Z)
+    end
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -1721,8 +1846,13 @@ RunService.Heartbeat:Connect(function()
     if not root or not hum2 then return end
 
     if State.infJumpEnabled then
-        local holding = UIS:IsKeyDown(Enum.KeyCode.Space) or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
-        if holding then root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z) end
+        local jumpHeld = UIS:IsKeyDown(Enum.KeyCode.Space) or UIS:IsKeyDown(Enum.KeyCode.ButtonA) or (hum2.Jump == true)
+        if jumpHeld and root.Velocity.Y < 30 then
+            root.Velocity = Vector3.new(root.Velocity.X, 55, root.Velocity.Z)
+        end
+        if root.Velocity.Y < -120 then
+            root.Velocity = Vector3.new(root.Velocity.X, -120, root.Velocity.Z)
+        end
     end
 
     if State.autoTpDownEnabled then
@@ -1799,7 +1929,7 @@ UIS.InputBegan:Connect(function(inp,gp)
         else stopBatAimbot() end
         if stackBtnRefs.aimbot then stackBtnRefs.aimbot.setOn(State.batAimbotToggled) end
     elseif kc==Keys.guiHide then
-        if isKb then State.guiVisible=not State.guiVisible; mainOuter.Visible=State.guiVisible end
+        if isKb then State.guiVisible=not State.guiVisible; if State.guiVisible then showGui(); vBtnLbl.Text="CLOSE" else hideGui(); vBtnLbl.Text="OPEN" end end
     end
 end)
 
@@ -1811,4 +1941,4 @@ task.delay(1, function() pcall(saveConfig) end)
 
 Players.PlayerRemoving:Connect(function(p)
     if p==LP then pcall(saveConfig) end
-end)
+end)       
