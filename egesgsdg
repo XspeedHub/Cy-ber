@@ -129,7 +129,7 @@ local BAT_NAMES = {
 }
 
 local State = {
-    normalSpeed=60, carrySpeed=30, laggerSpeed=11.1,
+    normalSpeed=60, carrySpeed=30, laggerSpeed=11,
     speedToggled=false, laggerEnabled=false,
     infJumpEnabled=false, antiRagdollEnabled=false, fpsBoostEnabled=false,
     guiVisible=true, uiLocked=false,
@@ -154,7 +154,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=68; local BTN_H=52; local BTN_GAP=7; local COLS=2
+local BTN_W=68; local BTN_H=48; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
