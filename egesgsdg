@@ -112,16 +112,8 @@ local DROP_ASCEND_DURATION = 0.2
 local DROP_ASCEND_SPEED    = 150
 
 -- ============================================================
--- BAT AIMBOT SETTINGS (BLACKSKILLISUE FEAR DUEL STYLE)
+-- BAT NAMES LIST
 -- ============================================================
-local AIMBOT_SPEED = 60
-local HIT_DISTANCE = 1.7
-local SWING_COOLDOWN = 0.08
-local BEHIND_DISTANCE = -3
-local BASE_PREDICTION = 0.15
-local FACING_PREDICTION = 1.5
-local PREDICTION_RADIUS_LIMIT = 10
-
 local BAT_NAMES = {
     "Bat", "Slap", "Iron Slap", "Gold Slap", "Diamond Slap",
     "Emerald Slap", "Ruby Slap", "Dark Matter Slap", "Flame Slap",
@@ -129,7 +121,7 @@ local BAT_NAMES = {
 }
 
 local State = {
-    normalSpeed=60, carrySpeed=30, laggerSpeed=11,
+    normalSpeed=60, carrySpeed=30, laggerSpeed=11.1,
     speedToggled=false, laggerEnabled=false,
     infJumpEnabled=false, antiRagdollEnabled=false, fpsBoostEnabled=false,
     guiVisible=true, uiLocked=false,
@@ -1157,15 +1149,14 @@ stopBatCounter=function()
 end
 
 -- ============================================================
--- BAT AIMBOT (BLACKSKILLISUE FEAR DUEL STYLE)
+-- BAT AIMBOT (Candy Hub Style - ported into Cyber Hub)
 -- ============================================================
 local aimbotActive = false
 local aimbotConnection = nil
-local aimbotHittingCooldown = false
 
+-- Finds the bat/slap tool in character or backpack
 local function getBat()
-    local char = LP.Character
-    if not char then return nil end
+    local char = LP.Character; if not char then return nil end
     for _, name in ipairs(BAT_NAMES) do
         local tool = char:FindFirstChild(name)
         if tool and tool:IsA("Tool") then return tool end
@@ -1184,139 +1175,112 @@ local function getBat()
     return nil
 end
 
-local function swingBat(targetChar)
-    if aimbotHittingCooldown then return end
-    aimbotHittingCooldown = true
-    pcall(function()
-        local bat = getBat()
-        if bat then
-            local handle = bat:FindFirstChild("Handle")
-            if handle and targetChar then
-                local targetHead = targetChar:FindFirstChild("Head")
-                if targetHead then
-                    pcall(function()
-                        firetouchinterest(handle, targetHead, 0)
-                        firetouchinterest(handle, targetHead, 1)
-                    end)
-                end
-            end
-            local remote = bat:FindFirstChildWhichIsA("RemoteEvent")
-            if remote then
-                pcall(function() remote:FireServer() end)
-            else
-                pcall(function() bat:Activate() end)
-            end
-        end
-    end)
-    task.delay(SWING_COOLDOWN, function()
-        aimbotHittingCooldown = false
-    end)
-end
-
-local function getTargetParts(targetChar, myPos)
-    local targetHead = targetChar:FindFirstChild("Head")
-    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
-    local targetUpper = targetChar:FindFirstChild("UpperTorso")
-    local targetLower = targetChar:FindFirstChild("LowerTorso")
-    if not targetHead or not targetHRP then return targetHRP, targetHRP end
-    local headY = targetHead.Position.Y
-    local myY = myPos.Y
-    if headY > myY + 3 then
-        return targetHead, targetHead
-    elseif myY > headY + 3 then
-        return targetLower or targetHRP, targetLower or targetHRP
-    else
-        return targetUpper or targetHRP, targetUpper or targetHRP
+-- Swings the currently held bat via Activate()
+local function swingCurrentBat()
+    local char = LP.Character; if not char then return end
+    local bat = getBat()
+    if bat and bat.Parent == char and bat:IsA("Tool") then
+        pcall(function() bat:Activate() end)
     end
 end
 
+-- Gets the closest enemy player
 local function getClosestEnemy()
-    local char = LP.Character
-    if not char then return nil, math.huge, nil, nil, nil end
-    local myHRP = char:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return nil, math.huge, nil, nil, nil end
-    local myPos = myHRP.Position
-    local closest, closestDist = nil, math.huge
-    local closestChar, closestHRP, closestHead, closestTargetPart = nil, nil, nil, nil
+    local char = LP.Character; if not char then return nil, math.huge, nil, nil end
+    local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return nil, math.huge, nil, nil end
+    local closest, closestDist, closestChar, closestHRP = nil, math.huge, nil, nil
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LP then
-            local targetChar = player.Character
-            if targetChar then
-                local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
-                local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
-                if targetHRP and targetHum and targetHum.Health > 0 then
-                    local dist = (myHRP.Position - targetHRP.Position).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = player
-                        closestChar = targetChar
-                        closestHRP = targetHRP
-                        closestHead = targetChar:FindFirstChild("Head")
-                        local targetPart, _ = getTargetParts(targetChar, myPos)
-                        closestTargetPart = targetPart
-                    end
+        if player ~= LP and player.Character then
+            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+            if targetHRP and targetHum and targetHum.Health > 0 then
+                local dist = (myHRP.Position - targetHRP.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = player
+                    closestChar = player.Character
+                    closestHRP = targetHRP
                 end
             end
         end
     end
-    return closest, closestDist, closestChar, closestHRP, closestHead, closestTargetPart
+    return closest, closestDist, closestChar, closestHRP
 end
 
+-- Start aimbot using Candy Hub's prediction + velocity approach
 local function startAimbot()
     if aimbotConnection then return end
     aimbotActive = true
-    aimbotConnection = RunService.Heartbeat:Connect(function()
+
+    -- Stop auto left/right if active
+    if State.autoLeftEnabled then State.autoLeftEnabled = false; stopAutoLeft() end
+    if State.autoRightEnabled then State.autoRightEnabled = false; stopAutoRight() end
+
+    -- Disable auto-rotate so we control facing manually
+    local hum0 = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    if hum0 then hum0.AutoRotate = false end
+
+    aimbotConnection = RunService.RenderStepped:Connect(function()
         if not aimbotActive then return end
-        local char = LP.Character
-        if not char then return end
-        local myHRP = char:FindFirstChild("HumanoidRootPart")
-        if not myHRP then return end
-        local myPos = myHRP.Position
-        local target, dist, targetChar, targetHRP, targetHead, targetPart = getClosestEnemy()
-        if target and targetChar and targetHRP and targetPart then
-            local currentVel = targetHRP.AssemblyLinearVelocity
-            local targetVelY = currentVel.Y
-            local targetPos = targetPart.Position
-            local headPos = targetHead and targetHead.Position or targetPos
-            local facingOffset = targetHRP.CFrame.LookVector * FACING_PREDICTION
-            local predictedPos = targetPos + facingOffset + (currentVel * BASE_PREDICTION)
-            local predOffset = predictedPos - targetPos
-            if predOffset.Magnitude > PREDICTION_RADIUS_LIMIT then
-                predictedPos = targetPos + predOffset.Unit * PREDICTION_RADIUS_LIMIT
-            end
-            local flatDir = Vector3.new(
-                predictedPos.X - myPos.X,
-                0,
-                predictedPos.Z - myPos.Z
-            )
-            local standPos = predictedPos - (flatDir.Unit * BEHIND_DISTANCE)
-            local myY = myPos.Y
-            local headY = headPos.Y
-            local predictedY = headY + (targetVelY * BASE_PREDICTION)
-            if math.abs(predictedY - headY) > 8 then
-                predictedY = headY + (predictedY - headY) / math.abs(predictedY - headY) * 8
-            end
-            local yVel = math.clamp((headY - myY) * 20, -120, 120)
-            local finalAimPoint = Vector3.new(standPos.X, predictedY, standPos.Z)
-            local moveDir = finalAimPoint - myPos
-            local finalDir = moveDir.Magnitude > 0.5 and moveDir.Unit or flatDir.Unit
-            myHRP.AssemblyLinearVelocity = Vector3.new(
-                finalDir.X * AIMBOT_SPEED,
-                yVel,
-                finalDir.Z * AIMBOT_SPEED
-            )
-            local headDist = headPos and (headPos - myPos).Magnitude or dist
-            if headDist <= HIT_DISTANCE then
-                swingBat(targetChar)
-            end
-        else
-            if myHRP then
-                myHRP.AssemblyLinearVelocity = Vector3.zero
-            end
+        local char = LP.Character; if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum2 = char:FindFirstChildOfClass("Humanoid")
+        if not root or not hum2 then return end
+
+        -- Auto-equip bat if not currently holding one
+        if not char:FindFirstChildOfClass("Tool") then
+            local bat = getBat()
+            if bat then pcall(function() hum2:EquipTool(bat) end) end
         end
+
+        local _, _, _, targetHRP = getClosestEnemy()
+        if not targetHRP then
+            swingCurrentBat()
+            return
+        end
+
+        local targetVel = targetHRP.Velocity
+        local myPos    = root.Position
+        local targetPos = targetHRP.Position
+
+        -- Predict target position 0.14s ahead
+        local predictPos = targetPos + targetVel * 0.14
+        local direction  = predictPos - myPos
+        local flatDir    = Vector3.new(direction.X, 0, direction.Z).Unit
+
+        -- Chase speed and vertical tracking
+        local chaseSpeed   = 60
+        local desiredHeight = targetPos.Y + 3.5
+        local yVel = (desiredHeight - myPos.Y) * 19.5 + targetVel.Y * 0.8
+        if hum2.FloorMaterial ~= Enum.Material.Air then
+            yVel = math.max(yVel, 13)
+        end
+        yVel = math.clamp(yVel, -70, 110)
+
+        -- Lerp velocity toward target
+        local desiredVel = Vector3.new(flatDir.X * chaseSpeed, yVel, flatDir.Z * chaseSpeed)
+        root.Velocity = root.Velocity:Lerp(desiredVel, 0.8)
+
+        -- Rotate toward predicted position using angular velocity
+        local predictedPos = targetPos + targetVel * math.clamp(targetVel.Magnitude / 150, 0.05, 0.2)
+        local toPredict    = predictedPos - myPos
+        if toPredict.Magnitude > 0.1 then
+            local goalCF = CFrame.lookAt(myPos, predictedPos)
+            local diffCF = root.CFrame:Inverse() * goalCF
+            local rx, ry, rz = diffCF:ToEulerAnglesXYZ()
+            rx = math.clamp(rx, -2.5, 2.5)
+            ry = math.clamp(ry, -2.5, 2.5)
+            rz = math.clamp(rz, -2.5, 2.5)
+            root.AssemblyAngularVelocity = root.CFrame:VectorToWorldSpace(
+                Vector3.new(rx * 42, ry * 42, rz * 42)
+            )
+        end
+
+        swingCurrentBat()
     end)
 end
 
+-- Stop aimbot and restore state
 local function stopAimbot()
     aimbotActive = false
     if aimbotConnection then
@@ -1325,8 +1289,13 @@ local function stopAimbot()
     end
     local char = LP.Character
     if char then
-        local myHRP = char:FindFirstChild("HumanoidRootPart")
-        if myHRP then myHRP.AssemblyLinearVelocity = Vector3.zero end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Velocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+        local hum2 = char:FindFirstChildOfClass("Humanoid")
+        if hum2 then hum2.AutoRotate = true end
     end
 end
 
@@ -1342,9 +1311,9 @@ local function toggleAimbot()
     end
 end
 
--- Export for GUI button
+-- Export references used elsewhere in the script
 startBatAimbot = startAimbot
-stopBatAimbot = stopAimbot
+stopBatAimbot  = stopAimbot
 
 -- ============================================================
 -- VBTN
@@ -1726,10 +1695,49 @@ stopAntiRagdoll = function()
 end
 
 -- ============================================================
--- FPS BOOST (Folk Hub style: thorough, uses setfpscap + sethiddenproperty)
+-- FPS BOOST & REMOVE ANIMATIONS SYSTEM (Integrated)
 -- ============================================================
+local animRemoveConnections = {}
+
+local function removeNonLocalAnimations()
+    for _, conn in ipairs(animRemoveConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    animRemoveConnections = {}
+    local function killAnimator(animator)
+        local model = animator:FindFirstAncestorOfClass("Model")
+        if model and model == LP.Character then return end
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            pcall(function() track:Stop(0) end)
+        end
+        local conn = animator.AnimationPlayed:Connect(function(track)
+            pcall(function() track:Stop(0) end)
+        end)
+        table.insert(animRemoveConnections, conn)
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Animator") then
+            pcall(killAnimator, obj)
+        end
+    end
+    local descConn = workspace.DescendantAdded:Connect(function(obj)
+        if State.fpsBoostEnabled and obj:IsA("Animator") then
+            pcall(killAnimator, obj)
+        end
+    end)
+    table.insert(animRemoveConnections, descConn)
+end
+
+local function stopAnimationRemoval()
+    for _, conn in ipairs(animRemoveConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    animRemoveConnections = {}
+end
+
 applyFPSBoost = function()
     pcall(function() setfpscap(999999999) end)
+    removeNonLocalAnimations()
     local function processObj(v)
         pcall(function()
             if v:IsA("Model") then
@@ -1775,9 +1783,38 @@ applyFPSBoost = function()
             terrain.WaterWaveSize = 0; terrain.WaterWaveSpeed = 0
         end
     end)
-    workspace.DescendantAdded:Connect(function(v)
-        if State.fpsBoostEnabled then task.spawn(processObj, v) end
+    local descendantConn = workspace.DescendantAdded:Connect(function(v)
+        if State.fpsBoostEnabled then
+            task.spawn(processObj, v)
+            if v:IsA("Animator") then
+                pcall(function()
+                    local model = v:FindFirstAncestorOfClass("Model")
+                    if model and model ~= LP.Character then
+                        for _, track in ipairs(v:GetPlayingAnimationTracks()) do
+                            pcall(function() track:Stop(0) end)
+                        end
+                        local animConn = v.AnimationPlayed:Connect(function(track)
+                            pcall(function() track:Stop(0) end)
+                        end)
+                        table.insert(animRemoveConnections, animConn)
+                    end
+                end)
+            end
+        end
     end)
+    table.insert(animRemoveConnections, descendantConn)
+end
+
+local originalSetFps = setFps
+setFps = function(on)
+    State.fpsBoostEnabled = on
+    if on then
+        pcall(applyFPSBoost)
+    else
+        stopAnimationRemoval()
+    end
+    if originalSetFps then pcall(originalSetFps, on) end
+    pcall(saveConfig)
 end
 
 -- ============================================================
@@ -1912,7 +1949,7 @@ loadConfig = function()
 end
 
 -- ============================================================
--- CHARACTER SETUP (With CYBER HUB Title + Speed Meter)
+-- CHARACTER SETUP
 -- ============================================================
 local function setupChar(char)
     task.wait(0.1); h=char:WaitForChild("Humanoid",5); hrp=char:WaitForChild("HumanoidRootPart",5)
@@ -1920,16 +1957,12 @@ local function setupChar(char)
     local head=char:FindFirstChild("Head")
     if head then
         local oldBB=head:FindFirstChild("CyberHubBB"); if oldBB then oldBB:Destroy() end
-        
-        -- Billboard GUI above player's head
         local bb=Instance.new("BillboardGui",head)
         bb.Name="CyberHubBB"
         bb.Size=UDim2.new(0,160,0,52)
         bb.StudsOffset=Vector3.new(0,2.5,0)
         bb.AlwaysOnTop=true
         bb.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-        
-        -- CYBER HUB Title (top line)
         local titleLbl = Instance.new("TextLabel", bb)
         titleLbl.Name = "CyberHubTitle"
         titleLbl.Size = UDim2.new(1,0,0,26)
@@ -1942,28 +1975,22 @@ local function setupChar(char)
         titleLbl.TextScaled = true
         titleLbl.TextStrokeTransparency = 0.1
         titleLbl.TextStrokeColor3 = Color3.new(0,0,0)
-        
-        -- Gradient effect for title
-        local titleGrad = Instance.new("UIGradient", titleLbl)
-        titleGrad.Color = ColorSequence.new({
+        local titleGrad2 = Instance.new("UIGradient", titleLbl)
+        titleGrad2.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
             ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
             ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
             ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
             ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
         })
-        titleGrad.Rotation = 0
-        
-        -- Animate gradient
+        titleGrad2.Rotation = 0
         task.spawn(function()
             while titleLbl and titleLbl.Parent do
-                TweenService:Create(titleGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
+                TweenService:Create(titleGrad2, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
                 task.wait(1.6)
-                titleGrad.Rotation = 0
+                titleGrad2.Rotation = 0
             end
         end)
-        
-        -- SPEED METER (bottom line)
         local speedBillLbl=Instance.new("TextLabel",bb)
         speedBillLbl.Name="SpeedBillLbl"
         speedBillLbl.Size=UDim2.new(1,0,0,24)
@@ -1977,7 +2004,6 @@ local function setupChar(char)
         speedBillLbl.TextStrokeTransparency=0.1
         speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
     end
-    -- Reset unwalk state on respawn
     if Conns.unwalk then Conns.unwalk:Disconnect(); Conns.unwalk = nil end
     unwalkAnimateRef = nil
     if State.unwalkEnabled then task.wait(0.3); doStartUnwalk() end
@@ -2003,7 +2029,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- INF JUMP (Folk Hub style: pure velocity-based Heartbeat check)
+-- INF JUMP + AUTO TP DOWN
 -- ============================================================
 RunService.Heartbeat:Connect(function()
     if not State.infJumpEnabled and not State.autoTpDownEnabled then return end
@@ -2046,7 +2072,6 @@ RunService.RenderStepped:Connect(function()
             if anyHeld then hrp.Velocity=Vector3.new(State.lastMoveDir.X*spd,hrp.Velocity.Y,State.lastMoveDir.Z*spd) end
         end
     end
-    -- Update Speed Meter Billboard
     pcall(function()
         local head2 = LP.Character and LP.Character:FindFirstChild("Head")
         if head2 then
@@ -2055,7 +2080,7 @@ RunService.RenderStepped:Connect(function()
             if sl then
                 local vel = hrp.Velocity
                 local hs = Vector3.new(vel.X, 0, vel.Z).Magnitude
-                sl.Text = "SPEED: " .. string.format("%.1f", hs)
+                sl.Text = "speed: " .. string.format("%.1f", hs)
             end
         end
     end)
