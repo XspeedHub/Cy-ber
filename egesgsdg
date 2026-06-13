@@ -1,5 +1,5 @@
 -- ============================================================
--- CYBER HUB
+-- NYXORA HUB (Obsidian Black + Light Blue Theme)
 -- ============================================================
 
 local Players         = game:GetService("Players")
@@ -12,6 +12,21 @@ local Stats           = game:GetService("Stats")
 local CoreGui         = game:GetService("CoreGui")
 local LP              = Players.LocalPlayer
 
+-- ============================================================
+-- THEME COLORS (Obsidian Black + Light Blue)
+-- ============================================================
+local THEME = {
+    OBSIDIAN   = Color3.fromRGB(8, 8, 12),
+    OBSIDIAN_LIGHT = Color3.fromRGB(15, 15, 22),
+    LIGHT_BLUE = Color3.fromRGB(100, 200, 255),
+    DARK_BLUE  = Color3.fromRGB(0, 80, 180),
+    ACCENT     = Color3.fromRGB(0, 150, 255),
+    GLOW       = Color3.fromRGB(80, 180, 255),
+    BG_DARK    = Color3.fromRGB(5, 5, 8),
+    TEXT_WHITE = Color3.fromRGB(255, 255, 255),
+    TEXT_BLUE  = Color3.fromRGB(100, 200, 255),
+}
+
 local LOGO_ID = "rbxassetid://7428916459"
 task.spawn(function() pcall(function() ContentProvider:PreloadAsync({LOGO_ID}) end) end)
 
@@ -21,92 +36,72 @@ local _writefile= writefile or (syn and syn.writefile) or (getgenv and getgenv()
 local getconnections = getconnections or get_signal_cons or getconnects or (syn and syn.get_signal_cons)
 
 -- ============================================================
--- ESP SYSTEM (Black & Blue) - AUTO ENABLED
+-- LIGHT BLUE ESP + SMALL NAME TAG
 -- ============================================================
-local espConnections = {}
 
-local function createESP(plr)
-    if plr == LP then return end
-    if not plr.Character then return end
-    if plr.Character:FindFirstChild("ESP_Hitbox") then return end
+local function addESP(player)
+    if player == LP then return end
     
-    local char = plr.Character
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local head = char:FindFirstChild("Head")
+    local character = player.Character
+    if not character then return end
     
-    if not (hrp and head) then return end
+    local head = character:FindFirstChild("Head")
+    if not head then return end
     
-    local hitbox = Instance.new("BoxHandleAdornment")
-    hitbox.Name = "ESP_Hitbox"
-    hitbox.Adornee = hrp
-    hitbox.Size = Vector3.new(4, 6, 2)
-    hitbox.Color3 = Color3.fromRGB(0, 0, 255)
-    hitbox.Transparency = 0.5
-    hitbox.ZIndex = 10
-    hitbox.AlwaysOnTop = true
-    hitbox.Parent = char
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "PlayerESP"
+    highlight.FillColor = THEME.DARK_BLUE
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = THEME.LIGHT_BLUE
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+    highlight.Adornee = character
     
     local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_Name"
+    billboard.Name = "NameTag"
     billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 150, 0, 40)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.Size = UDim2.new(0, 100, 0, 20)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
     billboard.AlwaysOnTop = true
-    billboard.Parent = char
+    billboard.Parent = character
     
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = plr.DisplayName or plr.Name
-    label.TextColor3 = Color3.fromRGB(0, 0, 0)
-    label.TextTransparency = 0.3
-    label.Font = Enum.Font.Arcade
-    label.TextScaled = true
-    label.TextStrokeTransparency = 0.5
-    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 255)
-    label.Parent = billboard
+    local nameLabel = Instance.new("TextLabel", billboard)
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.DisplayName or player.Name
+    nameLabel.TextColor3 = THEME.LIGHT_BLUE
+    nameLabel.TextSize = 10
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    nameLabel.TextStrokeTransparency = 0.3
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 end
 
-local function removeESP(plr)
-    if not plr.Character then return end
-    local hitbox = plr.Character:FindFirstChild("ESP_Hitbox")
-    local nameGui = plr.Character:FindFirstChild("ESP_Name")
-    if hitbox then hitbox:Destroy() end
-    if nameGui then nameGui:Destroy() end
-end
-
-local function startESP()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LP then
-            if plr.Character then
-                createESP(plr)
-            end
-            
-            local conn = plr.CharacterAdded:Connect(function()
-                task.wait(0.1)
-                createESP(plr)
-            end)
-            table.insert(espConnections, conn)
-        end
+local function removeESP(player)
+    local character = player.Character
+    if character then
+        local highlight = character:FindFirstChild("PlayerESP")
+        local billboard = character:FindFirstChild("NameTag")
+        if highlight then highlight:Destroy() end
+        if billboard then billboard:Destroy() end
     end
-    
-    local playerAddedConn = Players.PlayerAdded:Connect(function(plr)
-        if plr == LP then return end
-        
-        local charAddedConn = plr.CharacterAdded:Connect(function()
-            task.wait(0.1)
-            createESP(plr)
-        end)
-        table.insert(espConnections, charAddedConn)
-    end)
-    table.insert(espConnections, playerAddedConn)
 end
 
--- Auto start ESP
-startESP()
+for _, player in ipairs(Players:GetPlayers()) do
+    task.spawn(function() addESP(player) end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        addESP(player)
+    end)
+end)
+
+Players.PlayerRemoving:Connect(removeESP)
 
 -- ============================================================
--- DROP BR CONSTANTS (used in runDropBrainrot)
+-- DROP BR CONSTANTS
 -- ============================================================
 local DROP_ASCEND_DURATION = 0.2
 local DROP_ASCEND_SPEED    = 150
@@ -121,7 +116,7 @@ local BAT_NAMES = {
 }
 
 local State = {
-    normalSpeed=60, carrySpeed=30, laggerSpeed=11.1,
+    normalSpeed=60, carrySpeed=30, laggerSpeed=11,
     speedToggled=false, laggerEnabled=false,
     infJumpEnabled=false, antiRagdollEnabled=false, fpsBoostEnabled=false,
     guiVisible=true, uiLocked=false,
@@ -146,7 +141,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=68; local BTN_H=48; local BTN_GAP=7; local COLS=2
+local BTN_W=60; local BTN_H=53; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
@@ -170,7 +165,7 @@ local Steal = {
     Data={}, plotCache={}, plotCacheTime={}, cachedPrompts={}, promptCacheTime=0,
 }
 
-local CONFIG_FILE = "CyberHubConfig.json"
+local CONFIG_FILE = "NyxoraHubConfig.json"
 
 local MOVE_KEYS={[Enum.KeyCode.W]=true,[Enum.KeyCode.A]=true,[Enum.KeyCode.S]=true,[Enum.KeyCode.D]=true,
     [Enum.KeyCode.Up]=true,[Enum.KeyCode.Left]=true,[Enum.KeyCode.Down]=true,[Enum.KeyCode.Right]=true}
@@ -203,77 +198,80 @@ local unwalkAnimateRef = nil
 local optimizerDescConn = nil
 local setAutoTpDown
 
+-- ============================================================
+-- THEME COLORS FOR GUI
+-- ============================================================
 local C = {
-    winBg       = Color3.fromRGB(0, 0, 0),
-    winBorder   = Color3.fromRGB(0, 120, 255),
-    winBorderPulse = Color3.fromRGB(0, 200, 255),
-    topBg       = Color3.fromRGB(0, 0, 0),
-    topTitle    = Color3.fromRGB(0, 150, 255),
-    topSub      = Color3.fromRGB(0, 100, 200),
-    topBtn      = Color3.fromRGB(0, 120, 255),
-    topBtnHov   = Color3.fromRGB(0, 150, 255),
-    topDivider  = Color3.fromRGB(0, 70, 140),
-    tabBarBg    = Color3.fromRGB(2, 2, 10),
-    tabBarDiv   = Color3.fromRGB(0, 60, 120),
-    tabIdle     = Color3.fromRGB(80, 80, 120),
-    tabActive   = Color3.fromRGB(0, 150, 255),
-    tabActiveBg = Color3.fromRGB(5, 5, 20),
-    tabUnderline= Color3.fromRGB(0, 120, 255),
-    sectionTxt  = Color3.fromRGB(0, 150, 255),
-    sectionDiv  = Color3.fromRGB(0, 60, 120),
-    rowBg       = Color3.fromRGB(0, 0, 0),
-    rowBorder   = Color3.fromRGB(0, 50, 100),
+    winBg       = THEME.OBSIDIAN,
+    winBorder   = THEME.DARK_BLUE,
+    winBorderPulse = THEME.LIGHT_BLUE,
+    topBg       = THEME.OBSIDIAN,
+    topTitle    = THEME.LIGHT_BLUE,
+    topSub      = THEME.DARK_BLUE,
+    topBtn      = THEME.DARK_BLUE,
+    topBtnHov   = THEME.LIGHT_BLUE,
+    topDivider  = THEME.DARK_BLUE,
+    tabBarBg    = THEME.OBSIDIAN,
+    tabBarDiv   = THEME.DARK_BLUE,
+    tabIdle     = Color3.fromRGB(60, 60, 80),
+    tabActive   = THEME.LIGHT_BLUE,
+    tabActiveBg = THEME.OBSIDIAN_LIGHT,
+    tabUnderline= THEME.LIGHT_BLUE,
+    sectionTxt  = THEME.LIGHT_BLUE,
+    sectionDiv  = THEME.DARK_BLUE,
+    rowBg       = THEME.OBSIDIAN,
+    rowBorder   = THEME.DARK_BLUE,
     rowLabel    = Color3.fromRGB(200, 200, 220),
     rowSub      = Color3.fromRGB(80, 80, 120),
-    rowValue    = Color3.fromRGB(0, 150, 255),
-    rowHov      = Color3.fromRGB(5, 5, 20),
-    inputBg     = Color3.fromRGB(2, 2, 15),
-    inputBorder = Color3.fromRGB(0, 60, 120),
-    inputFocus  = Color3.fromRGB(0, 150, 255),
+    rowValue    = THEME.LIGHT_BLUE,
+    rowHov      = THEME.OBSIDIAN_LIGHT,
+    inputBg     = THEME.OBSIDIAN,
+    inputBorder = THEME.DARK_BLUE,
+    inputFocus  = THEME.LIGHT_BLUE,
     inputTxt    = Color3.fromRGB(200, 200, 220),
-    pillOff     = Color3.fromRGB(15, 15, 35),
-    pillOn      = Color3.fromRGB(0, 80, 160),
-    dotOff      = Color3.fromRGB(40, 40, 70),
+    pillOff     = Color3.fromRGB(15, 15, 25),
+    pillOn      = THEME.DARK_BLUE,
+    dotOff      = Color3.fromRGB(40, 40, 60),
     dotOn       = Color3.fromRGB(255, 255, 255),
-    pillBorder  = Color3.fromRGB(0, 100, 200),
-    modeBtnBg   = Color3.fromRGB(2, 2, 15),
-    modeBtnBrd  = Color3.fromRGB(0, 60, 120),
+    pillBorder  = THEME.LIGHT_BLUE,
+    modeBtnBg   = THEME.OBSIDIAN,
+    modeBtnBrd  = THEME.DARK_BLUE,
     modeBtnTxt  = Color3.fromRGB(100, 150, 220),
-    modeBtnActBg= Color3.fromRGB(0, 80, 160),
+    modeBtnActBg= THEME.DARK_BLUE,
     modeBtnActTx= Color3.fromRGB(255, 255, 255),
-    chipBg      = Color3.fromRGB(2, 2, 15),
-    chipBorder  = Color3.fromRGB(0, 60, 120),
+    chipBg      = THEME.OBSIDIAN,
+    chipBorder  = THEME.DARK_BLUE,
     chipTxt     = Color3.fromRGB(100, 150, 220),
-    btnBg       = Color3.fromRGB(0, 0, 10),
-    btnBorder   = Color3.fromRGB(0, 80, 160),
-    btnTxt      = Color3.fromRGB(0, 150, 255),
-    btnHov      = Color3.fromRGB(0, 40, 80),
-    stackBg     = Color3.fromRGB(0, 0, 5),
-    stackBrd    = Color3.fromRGB(0, 60, 120),
+    btnBg       = THEME.OBSIDIAN,
+    btnBorder   = THEME.DARK_BLUE,
+    btnTxt      = THEME.LIGHT_BLUE,
+    btnHov      = THEME.DARK_BLUE,
+    stackBg     = THEME.OBSIDIAN,
+    stackBrd    = THEME.DARK_BLUE,
     stackTxt    = Color3.fromRGB(100, 150, 220),
-    stackActBg  = Color3.fromRGB(0, 50, 100),
-    stackActBrd = Color3.fromRGB(0, 150, 255),
+    stackActBg  = THEME.DARK_BLUE,
+    stackActBrd = THEME.LIGHT_BLUE,
     stackActTxt = Color3.fromRGB(255, 255, 255),
-    stackDot    = Color3.fromRGB(0, 60, 120),
-    stackDotOn  = Color3.fromRGB(0, 150, 255),
-    infoBg      = Color3.fromRGB(0, 0, 5),
-    infoBrd     = Color3.fromRGB(0, 60, 120),
+    stackDot    = THEME.DARK_BLUE,
+    stackDotOn  = THEME.LIGHT_BLUE,
+    infoBg      = THEME.OBSIDIAN,
+    infoBrd     = THEME.DARK_BLUE,
     infoTxt     = Color3.fromRGB(80, 80, 120),
-    infoVal     = Color3.fromRGB(0, 150, 255),
-    infoFill    = Color3.fromRGB(0, 80, 160),
-    accent      = Color3.fromRGB(0, 120, 255),
-    accentDim   = Color3.fromRGB(0, 60, 120),
-    lockOn      = Color3.fromRGB(0, 150, 255),
-    divider     = Color3.fromRGB(0, 50, 100),
+    infoVal     = THEME.LIGHT_BLUE,
+    infoFill    = THEME.DARK_BLUE,
+    accent      = THEME.LIGHT_BLUE,
+    accentDim   = THEME.DARK_BLUE,
+    lockOn      = THEME.LIGHT_BLUE,
+    divider     = THEME.DARK_BLUE,
 }
 
-for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberBypass","CyberProfileGui","CyberHubHUD"}) do
+for _,name in pairs({"VyseSlottedGUI","VyseAsireGUI","VyseAsireHubV4","VyseAsireHubV5","VyseAsireHubV5_1","AsireHubV5_1","AsireHubV5_2","OpiumGGV5_2","CyberHub","CyberBypass","CyberProfileGui","CyberHubHUD","NyxoraHub","NyxoraHubHUD"}) do
     pcall(function() local o=game:GetService("CoreGui"):FindFirstChild(name); if o then o:Destroy() end end)
     pcall(function() local o=LP:WaitForChild("PlayerGui"):FindFirstChild(name); if o then o:Destroy() end end)
 end
 
 local gui=Instance.new("ScreenGui")
-gui.Name="CyberHub"; gui.ResetOnSpawn=false; gui.DisplayOrder=10
+gui.Name="NyxoraHub"; gui.ResetOnSpawn=false; gui.DisplayOrder=10
 gui.IgnoreGuiInset=true; gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 gui.Parent=LP:WaitForChild("PlayerGui")
 
@@ -290,14 +288,16 @@ local yogaBorders = {}
 local function mkYogaBorder(parent, thickBase, thickPeak, speed)
     speed = speed or 160; thickBase = thickBase or 1.5; thickPeak = thickPeak or 2.8
     local s = Instance.new("UIStroke", parent)
-    s.Color = Color3.fromRGB(0, 40, 120); s.Thickness = thickBase; s.Transparency = 0.2
+    s.Color = THEME.DARK_BLUE
+    s.Thickness = thickBase
+    s.Transparency = 0.2
     s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 20, 80)),
-        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 100, 220)),
-        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 100, 220)),
-        ColorSequenceKeypoint.new(1,   Color3.fromRGB(0, 20, 80)),
+        ColorSequenceKeypoint.new(0,   THEME.OBSIDIAN),
+        ColorSequenceKeypoint.new(0.4, THEME.LIGHT_BLUE),
+        ColorSequenceKeypoint.new(0.6, THEME.LIGHT_BLUE),
+        ColorSequenceKeypoint.new(1,   THEME.OBSIDIAN),
     })
     g.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0,    0.85),
@@ -368,7 +368,7 @@ end
 -- HUD BAR
 -- ============================================================
 local hudGui = Instance.new("ScreenGui")
-hudGui.Name           = "CyberHubHUD"
+hudGui.Name           = "NyxoraHubHUD"
 hudGui.ResetOnSpawn   = false
 hudGui.DisplayOrder   = 20
 hudGui.IgnoreGuiInset = true
@@ -376,64 +376,76 @@ hudGui.Parent         = LP:WaitForChild("PlayerGui")
 
 local hudFrame = Instance.new("Frame", hudGui)
 hudFrame.Name                   = "HudFrame"
-hudFrame.Size                   = UDim2.new(0, 260, 0, 30)
-hudFrame.Position               = UDim2.new(0.5, -125, 0, 8)
-hudFrame.BackgroundColor3       = Color3.fromRGB(3, 3, 12)
-hudFrame.BackgroundTransparency = 0.08
+hudFrame.Size                   = UDim2.new(0, 280, 0, 36)
+hudFrame.Position               = UDim2.new(0.5, -140, 0, 10)
+hudFrame.BackgroundColor3       = THEME.OBSIDIAN
+hudFrame.BackgroundTransparency = 0.15
 hudFrame.Active                 = true
 hudFrame.BorderSizePixel        = 0
 mkCorner(hudFrame, 10)
 mkYogaBorder(hudFrame, 1.5, 3.0, 140)
 
+local hudLogo = Instance.new("ImageLabel", hudFrame)
+hudLogo.Size = UDim2.new(0, 22, 0, 22)
+hudLogo.Position = UDim2.new(0, 8, 0.5, -11)
+hudLogo.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
+hudLogo.BackgroundTransparency = 0.5
+hudLogo.BorderSizePixel = 0
+hudLogo.Image = "rbxassetid://105132226968722"
+hudLogo.ScaleType = Enum.ScaleType.Fit
+mkCorner(hudLogo, 6)
+mkYogaBorder(hudLogo, 1, 2, 120)
+
 local hudFpsLbl = Instance.new("TextLabel", hudFrame)
 hudFpsLbl.Size                   = UDim2.new(0, 28, 1, 0)
-hudFpsLbl.Position               = UDim2.new(0, 20, 0, 0)
+hudFpsLbl.Position               = UDim2.new(0, 38, 0, 0)
 hudFpsLbl.BackgroundTransparency = 1
 hudFpsLbl.Text                   = "FPS"
-hudFpsLbl.TextColor3             = Color3.fromRGB(80, 130, 200)
+hudFpsLbl.TextColor3             = THEME.LIGHT_BLUE
 hudFpsLbl.Font                   = Enum.Font.GothamBold
 hudFpsLbl.TextSize               = 10
 hudFpsLbl.TextXAlignment         = Enum.TextXAlignment.Left
 hudFpsLbl.ZIndex                 = 3
 
 local hudFpsVal = Instance.new("TextLabel", hudFrame)
-hudFpsVal.Size                   = UDim2.new(0, 38, 1, 0)
-hudFpsVal.Position               = UDim2.new(0, 55, 0, 0)
+hudFpsVal.Size                   = UDim2.new(0, 40, 1, 0)
+hudFpsVal.Position               = UDim2.new(0, 68, 0, 0)
 hudFpsVal.BackgroundTransparency = 1
 hudFpsVal.Text                   = "0"
-hudFpsVal.TextColor3             = Color3.fromRGB(255, 255, 255)
+hudFpsVal.TextColor3             = THEME.TEXT_WHITE
 hudFpsVal.Font                   = Enum.Font.GothamBlack
 hudFpsVal.TextSize               = 12
 hudFpsVal.TextXAlignment         = Enum.TextXAlignment.Left
 hudFpsVal.ZIndex                 = 3
 
 local hudDiv1 = Instance.new("Frame", hudFrame)
-hudDiv1.Size                   = UDim2.new(0, 1, 0, 18)
-hudDiv1.Position               = UDim2.new(0, 85, 0.5, -9)
-hudDiv1.BackgroundColor3       = Color3.fromRGB(0, 80, 180)
-hudDiv1.BackgroundTransparency = 0.4
+hudDiv1.Size                   = UDim2.new(0, 1, 0, 20)
+hudDiv1.Position               = UDim2.new(0, 95, 0.5, -10)
+hudDiv1.BackgroundColor3       = THEME.LIGHT_BLUE
+hudDiv1.BackgroundTransparency = 0.5
 hudDiv1.BorderSizePixel        = 0
 hudDiv1.ZIndex                 = 3
 
 local hudTitle = Instance.new("TextLabel", hudFrame)
 hudTitle.Size                   = UDim2.new(0, 100, 1, 0)
-hudTitle.Position               = UDim2.new(0, 95, 0, 0)
+hudTitle.Position               = UDim2.new(0, 110, 0, 0)
 hudTitle.BackgroundTransparency = 1
-hudTitle.Text                   = "CYBER HUB"
-hudTitle.TextColor3             = Color3.fromRGB(255,255,255)
+hudTitle.Text                   = "NYXORA HUB"
+hudTitle.TextColor3             = THEME.TEXT_WHITE
 hudTitle.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
-hudTitle.TextSize               = 12
+hudTitle.TextSize               = 11
 hudTitle.TextXAlignment         = Enum.TextXAlignment.Left
 hudTitle.TextStrokeTransparency = 0.1
 hudTitle.TextStrokeColor3       = Color3.new(0,0,0)
 hudTitle.ZIndex                 = 3
+
 local hudTitleGrad = Instance.new("UIGradient", hudTitle)
 hudTitleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
-    ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
-    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
-    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
-    ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+    ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
+    ColorSequenceKeypoint.new(0.35, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(0.5,  THEME.TEXT_WHITE),
+    ColorSequenceKeypoint.new(0.65, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(1,    THEME.OBSIDIAN),
 })
 hudTitleGrad.Rotation = 0
 task.spawn(function()
@@ -445,72 +457,70 @@ task.spawn(function()
 end)
 
 local hudDiv2 = Instance.new("Frame", hudFrame)
-hudDiv2.Size                   = UDim2.new(0, 1, 0, 18)
-hudDiv2.Position               = UDim2.new(0, 180, 0.5, -9)
-hudDiv2.BackgroundColor3       = Color3.fromRGB(0, 80, 180)
-hudDiv2.BackgroundTransparency = 0.4
+hudDiv2.Size                   = UDim2.new(0, 1, 0, 20)
+hudDiv2.Position               = UDim2.new(0, 195, 0.5, -10)
+hudDiv2.BackgroundColor3       = THEME.LIGHT_BLUE
+hudDiv2.BackgroundTransparency = 0.5
 hudDiv2.BorderSizePixel        = 0
 hudDiv2.ZIndex                 = 3
 
 local hudPingLbl = Instance.new("TextLabel", hudFrame)
 hudPingLbl.Size                   = UDim2.new(0, 34, 1, 0)
-hudPingLbl.Position               = UDim2.new(0, 185, 0, 0)
+hudPingLbl.Position               = UDim2.new(0, 205, 0, 0)
 hudPingLbl.BackgroundTransparency = 1
 hudPingLbl.Text                   = "PING"
-hudPingLbl.TextColor3             = Color3.fromRGB(80, 130, 200)
+hudPingLbl.TextColor3             = THEME.LIGHT_BLUE
 hudPingLbl.Font                   = Enum.Font.GothamBold
-hudPingLbl.TextSize               = 10
+hudPingLbl.TextSize               = 9
 hudPingLbl.TextXAlignment         = Enum.TextXAlignment.Left
 hudPingLbl.ZIndex                 = 3
 
 local hudPingVal = Instance.new("TextLabel", hudFrame)
-hudPingVal.Size                   = UDim2.new(0, 60, 1, 0)
-hudPingVal.Position               = UDim2.new(0, 215, 0, 0)
+hudPingVal.Size                   = UDim2.new(0, 50, 1, 0)
+hudPingVal.Position               = UDim2.new(0, 235, 0, 0)
 hudPingVal.BackgroundTransparency = 1
 hudPingVal.Text                   = "0ms"
-hudPingVal.TextColor3             = Color3.fromRGB(255, 255, 255)
+hudPingVal.TextColor3             = THEME.TEXT_WHITE
 hudPingVal.Font                   = Enum.Font.GothamBlack
-hudPingVal.TextSize               = 12
+hudPingVal.TextSize               = 11
 hudPingVal.TextXAlignment         = Enum.TextXAlignment.Left
 hudPingVal.ZIndex                 = 3
 
--- Steal / Progress bar attached below HUD
-local pTrack = Instance.new("Frame", hudFrame)
-pTrack.Size             = UDim2.new(1, 0, 0, 10)
-pTrack.Position         = UDim2.new(0, 0, 1, 4)
-pTrack.BackgroundColor3 = Color3.fromRGB(0, 10, 30)
+local pTrack = Instance.new("Frame", hudGui)
+pTrack.Size             = UDim2.new(0, 280, 0, 6)
+pTrack.Position         = UDim2.new(0.5, -140, 0, 50)
+pTrack.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
 pTrack.BorderSizePixel  = 0
 pTrack.ZIndex           = 3
 mkCorner(pTrack, 3)
-mkStroke(pTrack, Color3.fromRGB(0, 40, 100), 1)
+mkYogaBorder(pTrack, 1, 2, 140)
 
 local progressFill = Instance.new("Frame", pTrack)
 progressFill.Size             = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
+progressFill.BackgroundColor3 = THEME.LIGHT_BLUE
 progressFill.BorderSizePixel  = 0
 progressFill.ZIndex           = 4
 mkCorner(progressFill, 3)
 
 local fillGrad = Instance.new("UIGradient", progressFill)
 fillGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 60, 160)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 160, 255)),
-    ColorSequenceKeypoint.new(1,   Color3.fromRGB(0, 60, 160)),
+    ColorSequenceKeypoint.new(0,   THEME.OBSIDIAN),
+    ColorSequenceKeypoint.new(0.5, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(1,   THEME.OBSIDIAN),
 })
-table.insert(yogaBorders, {g = fillGrad, speed = 80})
 
 local stealPctLbl = Instance.new("TextLabel", pTrack)
 stealPctLbl.Size                   = UDim2.new(1, 0, 1, 0)
 stealPctLbl.BackgroundTransparency = 1
 stealPctLbl.Text                   = "0%"
-stealPctLbl.TextColor3             = Color3.fromRGB(255, 255, 255)
+stealPctLbl.TextColor3             = THEME.TEXT_WHITE
 stealPctLbl.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-stealPctLbl.TextSize               = 8
+stealPctLbl.TextSize               = 7
 stealPctLbl.TextXAlignment         = Enum.TextXAlignment.Center
 stealPctLbl.TextYAlignment         = Enum.TextYAlignment.Center
 stealPctLbl.ZIndex                 = 6
 
--- HUD drag
+-- HUD drag (moves both together)
 do
     local dDrag, dStart, dPos = false, nil, nil
     hudFrame.InputBegan:Connect(function(inp)
@@ -525,11 +535,12 @@ do
         if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
             local d = inp.Position - dStart
             hudFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
+            pTrack.Position = UDim2.new(hudFrame.Position.X.Scale, hudFrame.Position.X.Offset, hudFrame.Position.Y.Scale, hudFrame.Position.Y.Offset + 40)
         end
     end)
 end
 
--- HUD FPS/Ping updater
+-- FPS/Ping updater
 do
     local _fc = 0; local _lt = tick()
     RunService.RenderStepped:Connect(function()
@@ -544,13 +555,26 @@ do
         if ping == 0 then pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["DataPing"]:GetValue()) end) end
         if ping == 0 then pcall(function() ping = math.floor(LP:GetNetworkPing() * 1000) end) end
         hudPingVal.Text = tostring(ping) .. "ms"
+        
+        if ping < 50 then
+            hudPingVal.TextColor3 = Color3.fromRGB(0, 255, 100)
+        elseif ping < 120 then
+            hudPingVal.TextColor3 = Color3.fromRGB(255, 200, 0)
+        else
+            hudPingVal.TextColor3 = Color3.fromRGB(255, 50, 50)
+        end
     end)
+end
+
+local function resetProgressBar()
+    stealPctLbl.Text = "0%"
+    progressFill.Size = UDim2.new(0, 0, 1, 0)
 end
 
 -- ============================================================
 -- MAIN WINDOW
 -- ============================================================
-local WIN_W = 260; local WIN_H = 340; local TITLE_H = 65
+local WIN_W = 265; local WIN_H = 350; local TITLE_H = 52
 
 local mainOuter = Instance.new("Frame", gui)
 mainOuter.Name = "MainOuter"
@@ -558,55 +582,109 @@ mainOuter.Size = UDim2.new(0, WIN_W, 0, WIN_H)
 mainOuter.Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2)
 mainOuter.BackgroundTransparency = 1; mainOuter.BorderSizePixel = 0; mainOuter.ClipsDescendants = true
 mkCorner(mainOuter, 14)
-mkYogaBorder(mainOuter, 2.5, 4.5, 160)
+mkYogaBorder(mainOuter, 1.5, 3.0, 160)
 makeDraggable(mainOuter)
 
 local mainScale = Instance.new("UIScale", mainOuter)
 mainScale.Scale = 1
 
 local bgImg = Instance.new("ImageLabel", mainOuter)
-bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundColor3 = C.winBg
-bgImg.Image = LOGO_ID; bgImg.ScaleType = Enum.ScaleType.Crop
-bgImg.ImageTransparency = 0.85; bgImg.ZIndex = 0; mkCorner(bgImg, 14)
+bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundTransparency = 1
+bgImg.Image = "rbxassetid://80432866109662"; bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.ImageTransparency = 0; bgImg.ZIndex = 0; mkCorner(bgImg, 14)
 
 local bgOverlay = Instance.new("Frame", mainOuter)
-bgOverlay.Size = UDim2.new(1,0,1,0); bgOverlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+bgOverlay.Size = UDim2.new(1,0,1,0); bgOverlay.BackgroundTransparency = 1
 bgOverlay.BorderSizePixel = 0; bgOverlay.ZIndex = 1; mkCorner(bgOverlay, 14)
 
 local ProfileFrame = Instance.new("Frame", mainOuter)
-ProfileFrame.Size = UDim2.new(1,0,0,TITLE_H); ProfileFrame.BackgroundColor3 = C.topBg
+ProfileFrame.Size = UDim2.new(1,0,0,TITLE_H); ProfileFrame.BackgroundTransparency = 1
 ProfileFrame.ZIndex = 5; mkCorner(ProfileFrame, 14)
 
-local AvatarImage = Instance.new("ImageLabel", ProfileFrame)
-AvatarImage.Size = UDim2.new(0,48,0,48); AvatarImage.Position = UDim2.new(0,10,0.5,-24)
-AvatarImage.BackgroundColor3 = C.rowBg
-AvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id="..LP.UserId.."&w=150&h=150"
-AvatarImage.ZIndex = 6; mkCorner(AvatarImage, 999); mkStroke(AvatarImage, Color3.fromRGB(0,120,255), 2)
+local headerAccent = Instance.new("Frame", mainOuter)
+headerAccent.Size=UDim2.new(1,-20,0,1); headerAccent.Position=UDim2.new(0,10,0,TITLE_H)
+headerAccent.BackgroundColor3=THEME.LIGHT_BLUE
+headerAccent.BorderSizePixel=0; headerAccent.ZIndex=5
+local _haGrad=Instance.new("UIGradient", headerAccent)
+_haGrad.Transparency=NumberSequence.new({
+    NumberSequenceKeypoint.new(0,   1),
+    NumberSequenceKeypoint.new(0.2, 0.3),
+    NumberSequenceKeypoint.new(0.5, 0),
+    NumberSequenceKeypoint.new(0.8, 0.3),
+    NumberSequenceKeypoint.new(1,   1),
+})
+_haGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,   THEME.OBSIDIAN),
+    ColorSequenceKeypoint.new(0.5, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(1,   THEME.OBSIDIAN),
+})
 
-local cyberHubTitle = Instance.new("TextLabel", ProfileFrame)
-cyberHubTitle.Size = UDim2.new(1,0,1,0); cyberHubTitle.BackgroundTransparency = 1
-cyberHubTitle.Text = "CYBER HUB"; cyberHubTitle.TextColor3 = Color3.fromRGB(255,255,255)
-cyberHubTitle.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
-cyberHubTitle.TextSize = 20
-cyberHubTitle.TextXAlignment = Enum.TextXAlignment.Center; cyberHubTitle.TextYAlignment = Enum.TextYAlignment.Center
-cyberHubTitle.ZIndex = 6; cyberHubTitle.TextStrokeTransparency = 0.1
-cyberHubTitle.TextStrokeColor3 = Color3.new(0,0,0)
-local titleGrad = Instance.new("UIGradient", cyberHubTitle)
+local logoBox=Instance.new("ImageLabel", ProfileFrame)
+logoBox.Size=UDim2.new(0,26,0,26); logoBox.Position=UDim2.new(0,8,0,6)
+logoBox.BackgroundColor3=THEME.OBSIDIAN_LIGHT
+logoBox.BackgroundTransparency=0.3
+logoBox.BorderSizePixel=0; logoBox.ZIndex=6
+logoBox.Image="rbxassetid://105132226968722"
+logoBox.ScaleType=Enum.ScaleType.Fit
+mkCorner(logoBox,8)
+mkYogaBorder(logoBox, 1.2, 2.2, 130)
+
+local titleShadow=Instance.new("TextLabel", ProfileFrame)
+titleShadow.Size=UDim2.new(0,170,0,22); titleShadow.Position=UDim2.new(0,42,0,5)
+titleShadow.BackgroundTransparency=1; titleShadow.Text="NYXORA HUB"
+titleShadow.TextColor3=THEME.OBSIDIAN
+titleShadow.Font=Enum.Font.SourceSansItalic
+titleShadow.TextSize=18; titleShadow.TextXAlignment=Enum.TextXAlignment.Left; titleShadow.ZIndex=5
+titleShadow.TextTransparency=0.72
+
+local nyxoraHubTitle = Instance.new("TextLabel", ProfileFrame)
+nyxoraHubTitle.Size = UDim2.new(0,170,0,22); nyxoraHubTitle.Position = UDim2.new(0,41,0,4)
+nyxoraHubTitle.BackgroundTransparency = 1
+nyxoraHubTitle.Text = "NYXORA HUB"
+nyxoraHubTitle.TextColor3 = THEME.TEXT_WHITE
+nyxoraHubTitle.Font = Enum.Font.SourceSansItalic
+nyxoraHubTitle.TextSize = 18
+nyxoraHubTitle.TextXAlignment = Enum.TextXAlignment.Left
+nyxoraHubTitle.ZIndex = 6
+nyxoraHubTitle.TextStrokeTransparency = 0.2
+nyxoraHubTitle.TextStrokeColor3 = THEME.LIGHT_BLUE
+
+local titleGrad = Instance.new("UIGradient", nyxoraHubTitle)
 titleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
-    ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
-    ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
-    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
-    ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+    ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
+    ColorSequenceKeypoint.new(0.35, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(0.5,  THEME.TEXT_WHITE),
+    ColorSequenceKeypoint.new(0.65, THEME.LIGHT_BLUE),
+    ColorSequenceKeypoint.new(1,    THEME.OBSIDIAN),
 })
 titleGrad.Rotation = 0
 task.spawn(function()
-    while cyberHubTitle and cyberHubTitle.Parent do
-        TweenService:Create(titleGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
-        task.wait(1.6)
-        titleGrad.Rotation = 0
+    local t = 0
+    while nyxoraHubTitle and nyxoraHubTitle.Parent do
+        t = (t + 0.03) % 2
+        titleGrad.Offset = Vector2.new(t - 1, 0)
+        task.wait(0.03)
     end
 end)
+
+local discordIcon = Instance.new("ImageLabel", ProfileFrame)
+discordIcon.Size = UDim2.new(0,12,0,12); discordIcon.Position = UDim2.new(0,42,0,30)
+discordIcon.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
+discordIcon.BackgroundTransparency = 0.3
+discordIcon.BorderSizePixel = 0; discordIcon.ZIndex = 6
+discordIcon.Image = "rbxassetid://80198175785700"
+discordIcon.ScaleType = Enum.ScaleType.Fit
+mkCorner(discordIcon, 3)
+
+local discordLbl = Instance.new("TextLabel", ProfileFrame)
+discordLbl.Size = UDim2.new(0,160,0,12); discordLbl.Position = UDim2.new(0,58,0,30)
+discordLbl.BackgroundTransparency = 1
+discordLbl.Text = "discord.gg/nyxorafr"
+discordLbl.TextColor3 = THEME.LIGHT_BLUE
+discordLbl.Font = Enum.Font.Gotham
+discordLbl.TextSize = 8
+discordLbl.TextXAlignment = Enum.TextXAlignment.Left
+discordLbl.ZIndex = 6
 
 local titleDiv = Instance.new("Frame", mainOuter)
 titleDiv.Size = UDim2.new(1,0,0,1); titleDiv.Position = UDim2.new(0,0,0,TITLE_H)
@@ -643,7 +721,7 @@ local function makeSectionHeader(label)
     local lbl = Instance.new("TextLabel", wrap)
     lbl.Size = UDim2.new(1,-28,1,0); lbl.Position = UDim2.new(0,14,0,0)
     lbl.BackgroundTransparency = 1; lbl.Text = label and label:upper() or ""
-    lbl.TextColor3 = C.sectionTxt
+    lbl.TextColor3 = THEME.LIGHT_BLUE
     lbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     lbl.TextSize = 10; lbl.TextXAlignment = Enum.TextXAlignment.Left
 end
@@ -666,7 +744,7 @@ local function makeInputRow(label, default, onChange)
     local bs = mkYogaBorder(boxWrap, 1.2, 2.2, 130)
     local box = Instance.new("TextBox", boxWrap)
     box.Size = UDim2.new(1,-8,1,0); box.Position = UDim2.new(0,4,0,0)
-    box.BackgroundTransparency = 1; box.Text = tostring(default); box.TextColor3 = C.inputTxt
+    box.BackgroundTransparency = 1; box.Text = tostring(default); box.TextColor3 = THEME.LIGHT_BLUE
     box.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     box.TextSize = 13; box.ClearTextOnFocus = false; box.ZIndex = 8
     box.TextXAlignment = Enum.TextXAlignment.Center
@@ -692,7 +770,7 @@ local function makeToggleRow(label, defaultOn, onToggle)
     lbl.TextSize = 13; lbl.TextXAlignment = Enum.TextXAlignment.Left
     local pillBg = Instance.new("Frame", row)
     pillBg.Size = UDim2.new(0,52,0,26); pillBg.Position = UDim2.new(1,-62,0.5,-13)
-    pillBg.BackgroundColor3 = defaultOn and Color3.fromRGB(0,30,80) or Color3.fromRGB(4,4,14)
+    pillBg.BackgroundColor3 = defaultOn and THEME.DARK_BLUE or THEME.OBSIDIAN
     pillBg.BorderSizePixel = 0; pillBg.ZIndex = 7; mkCorner(pillBg, 7)
     mkYogaBorder(pillBg, 1.2, 2.4, 150)
     local offLbl = Instance.new("TextLabel", pillBg)
@@ -703,24 +781,24 @@ local function makeToggleRow(label, defaultOn, onToggle)
     local onLbl = Instance.new("TextLabel", pillBg)
     onLbl.Size = UDim2.new(0.5,0,1,0); onLbl.Position = UDim2.new(0.5,0,0,0)
     onLbl.BackgroundTransparency = 1; onLbl.Text = "ON"
-    onLbl.TextColor3 = defaultOn and Color3.fromRGB(0,180,255) or Color3.fromRGB(30,50,90)
+    onLbl.TextColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(30,50,90)
     onLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     onLbl.TextSize = 9; onLbl.TextXAlignment = Enum.TextXAlignment.Center; onLbl.ZIndex = 8
     local dot = Instance.new("Frame", pillBg)
     dot.Size = UDim2.new(0.5,-3,1,-4)
     dot.Position = defaultOn and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2)
-    dot.BackgroundColor3 = defaultOn and Color3.fromRGB(0,80,180) or Color3.fromRGB(15,15,40)
+    dot.BackgroundColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,40)
     dot.BorderSizePixel = 0; dot.ZIndex = 7; mkCorner(dot, 5)
-    mkStroke(dot, defaultOn and Color3.fromRGB(0,120,255) or Color3.fromRGB(30,40,80), 1)
+    mkStroke(dot, defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(30,40,80), 1)
     local isOn = defaultOn or false
     local function setV(on)
         isOn = on
-        TweenService:Create(pillBg,TweenInfo.new(0.2,Enum.EasingStyle.Quad),{BackgroundColor3=on and Color3.fromRGB(0,30,80) or Color3.fromRGB(4,4,14)}):Play()
-        TweenService:Create(dot,TweenInfo.new(0.2,Enum.EasingStyle.Back),{Position=on and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2),BackgroundColor3=on and Color3.fromRGB(0,80,180) or Color3.fromRGB(15,15,40)}):Play()
-        TweenService:Create(onLbl,TweenInfo.new(0.2),{TextColor3=on and Color3.fromRGB(0,180,255) or Color3.fromRGB(30,50,90)}):Play()
+        TweenService:Create(pillBg,TweenInfo.new(0.2,Enum.EasingStyle.Quad),{BackgroundColor3=on and THEME.DARK_BLUE or THEME.OBSIDIAN}):Play()
+        TweenService:Create(dot,TweenInfo.new(0.2,Enum.EasingStyle.Back),{Position=on and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2),BackgroundColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,40)}):Play()
+        TweenService:Create(onLbl,TweenInfo.new(0.2),{TextColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(30,50,90)}):Play()
         TweenService:Create(offLbl,TweenInfo.new(0.2),{TextColor3=on and Color3.fromRGB(30,50,90) or Color3.fromRGB(80,100,160)}):Play()
         local dotStroke=dot:FindFirstChildOfClass("UIStroke")
-        if dotStroke then TweenService:Create(dotStroke,TweenInfo.new(0.2),{Color=on and Color3.fromRGB(0,120,255) or Color3.fromRGB(30,40,80)}):Play() end
+        if dotStroke then TweenService:Create(dotStroke,TweenInfo.new(0.2),{Color=on and THEME.LIGHT_BLUE or Color3.fromRGB(30,40,80)}):Play() end
     end
     local function toggle() isOn=not isOn; setV(isOn); if onToggle then pcall(onToggle,isOn) end end
     local clk = Instance.new("TextButton", row)
@@ -757,7 +835,7 @@ local function makeKeybindRow(label, currentKey, onChanged, keyName)
     local ks = mkYogaBorder(kbtnWrap, 1.2, 2.2, 130)
     local kbtn = Instance.new("TextButton", kbtnWrap)
     kbtn.Size = UDim2.new(1,0,1,0); kbtn.BackgroundTransparency = 1; kbtn.BorderSizePixel = 0
-    kbtn.Text = getKeyDisplayName(currentKey); kbtn.TextColor3 = C.inputTxt
+    kbtn.Text = getKeyDisplayName(currentKey); kbtn.TextColor3 = THEME.LIGHT_BLUE
     kbtn.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     kbtn.TextSize = 11; kbtn.ZIndex = 8; mkCorner(kbtn, 5)
     local listening = false; local lconnKeyboard = nil; local lconnGamepad = nil
@@ -766,7 +844,7 @@ local function makeKeybindRow(label, currentKey, onChanged, keyName)
         if lconnKeyboard then lconnKeyboard:Disconnect(); lconnKeyboard = nil end
         if lconnGamepad then lconnGamepad:Disconnect(); lconnGamepad = nil end
         TweenService:Create(ks,TweenInfo.new(0.15),{Transparency=0.2}):Play()
-        kbtn.TextColor3 = C.inputTxt
+        kbtn.TextColor3 = THEME.LIGHT_BLUE
         if key then
             kbtn.Text = getKeyDisplayName(key)
             if onChanged then onChanged(key) end
@@ -795,7 +873,7 @@ local function makeKeybindRow(label, currentKey, onChanged, keyName)
 end
 
 -- ============================================================
--- UNWALK (Folk Hub style: destroy Animate script directly)
+-- UNWALK
 -- ============================================================
 local function doStartUnwalk()
     local c = LP.Character; if not c then return end
@@ -963,10 +1041,15 @@ end)
 
 makeGap(8)
 
+-- ============================================================
+-- OTHER KEYBINDS (ADDED AUTO LEFT & AUTO RIGHT KEYBINDS)
+-- ============================================================
 makeSectionHeader("Other Keybinds")
 makeGap(2)
 makeKeybindRow("Speed Key", Keys.speed, function(k) Keys.speed=k end, "speed")
 makeKeybindRow("Lagger Key", Keys.lagger, function(k) Keys.lagger=k end, "lagger")
+makeKeybindRow("Auto Left Key", Keys.autoLeft, function(k) Keys.autoLeft=k end, "autoLeft")
+makeKeybindRow("Auto Right Key", Keys.autoRight, function(k) Keys.autoRight=k end, "autoRight")
 makeKeybindRow("Aimbot Key", Keys.aimbot, function(k) Keys.aimbot=k end, "aimbot")
 makeKeybindRow("Drop Key", Keys.drop, function(k) Keys.drop=k end, "drop")
 makeKeybindRow("TP Down Key", Keys.tpDown, function(k) Keys.tpDown=k end, "tpDown")
@@ -975,7 +1058,6 @@ makeGap(8)
 
 local savedStackPositions = {}
 
--- fancy button builder (dark blue style)
 local function makeFancyButton(label, ACC, DK, GLOW, onClick)
     local SAVE_H = 36
     local w = Instance.new("Frame", currentPage)
@@ -987,7 +1069,8 @@ local function makeFancyButton(label, ACC, DK, GLOW, onClick)
     mkCorner(glowFr, 11)
     local btn = Instance.new("TextButton", w)
     btn.Size = UDim2.new(1,-14,0,SAVE_H); btn.Position = UDim2.new(0,7,0,3)
-    btn.BackgroundColor3 = Color3.fromRGB(6,6,20); btn.BorderSizePixel = 0
+    btn.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
+    btn.BorderSizePixel = 0
     btn.Text = ""; btn.ZIndex = 5; mkCorner(btn, 9)
     mkYogaBorder(btn, 1.2, 2.4, 160)
     local fill = Instance.new("Frame", btn)
@@ -1040,14 +1123,15 @@ local function makeFancyButton(label, ACC, DK, GLOW, onClick)
     return txtLbl
 end
 
-local DB_ACC  = Color3.fromRGB(0,  60, 180)
-local DB_DK   = Color3.fromRGB(0,  15,  55)
-local DB_GLOW = Color3.fromRGB(80, 180, 255)
+local DB_ACC  = THEME.LIGHT_BLUE
+local DB_DK   = THEME.OBSIDIAN
+local DB_GLOW = THEME.LIGHT_BLUE
 
 local resetTxt = makeFancyButton("Reset Button Positions", DB_ACC, DB_DK, DB_GLOW, function(lbl, glow)
     for i, def in ipairs(stackDefs) do
         local wrapper = stackWrappers[def.key]
-        if wrapper then TweenService:Create(wrapper,TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=getDefaultStackPos(i)}):Play() end
+        if wrapper then TweenService:Create(wrapper,TweenInfo.new(0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=getDefaultStackPos(i)}):Play()
+        end
     end
     lbl.Text = "Positions Reset!"
     task.delay(1.8, function() if lbl and lbl.Parent then lbl.Text="Reset Button Positions"; lbl.TextColor3=glow end end)
@@ -1070,7 +1154,7 @@ local lockTxt = makeFancyButton("Lock Positions: OFF", DB_ACC, DB_DK, DB_GLOW, f
     State.uiLocked = not State.uiLocked
     if State.uiLocked then
         lbl.Text = "Lock Positions: ON"
-        lbl.TextColor3 = Color3.fromRGB(0,220,255)
+        lbl.TextColor3 = THEME.LIGHT_BLUE
     else
         lbl.Text = "Lock Positions: OFF"
         lbl.TextColor3 = glow
@@ -1085,7 +1169,7 @@ fw.Size = UDim2.new(1,0,0,22); fw.BackgroundTransparency = 1
 fw.BorderSizePixel = 0; fw.LayoutOrder = LO()
 local fl = Instance.new("TextLabel", fw)
 fl.Size = UDim2.new(1,0,1,0); fl.BackgroundTransparency = 1
-fl.Text = "CYBER HUB  ·  v1.0"; fl.TextColor3 = Color3.fromRGB(0,80,180)
+fl.Text = "NYXORA HUB  ·  v1.0"; fl.TextColor3 = THEME.DARK_BLUE
 fl.FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic)
 fl.TextSize = 10; fl.TextXAlignment = Enum.TextXAlignment.Center
 
@@ -1149,12 +1233,11 @@ stopBatCounter=function()
 end
 
 -- ============================================================
--- BAT AIMBOT (Candy Hub Style - ported into Cyber Hub)
+-- BAT AIMBOT
 -- ============================================================
 local aimbotActive = false
 local aimbotConnection = nil
 
--- Finds the bat/slap tool in character or backpack
 local function getBat()
     local char = LP.Character; if not char then return nil end
     for _, name in ipairs(BAT_NAMES) do
@@ -1175,7 +1258,6 @@ local function getBat()
     return nil
 end
 
--- Swings the currently held bat via Activate()
 local function swingCurrentBat()
     local char = LP.Character; if not char then return end
     local bat = getBat()
@@ -1184,7 +1266,6 @@ local function swingCurrentBat()
     end
 end
 
--- Gets the closest enemy player
 local function getClosestEnemy()
     local char = LP.Character; if not char then return nil, math.huge, nil, nil end
     local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return nil, math.huge, nil, nil end
@@ -1207,16 +1288,13 @@ local function getClosestEnemy()
     return closest, closestDist, closestChar, closestHRP
 end
 
--- Start aimbot using Candy Hub's prediction + velocity approach
 local function startAimbot()
     if aimbotConnection then return end
     aimbotActive = true
 
-    -- Stop auto left/right if active
     if State.autoLeftEnabled then State.autoLeftEnabled = false; stopAutoLeft() end
     if State.autoRightEnabled then State.autoRightEnabled = false; stopAutoRight() end
 
-    -- Disable auto-rotate so we control facing manually
     local hum0 = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
     if hum0 then hum0.AutoRotate = false end
 
@@ -1227,7 +1305,6 @@ local function startAimbot()
         local hum2 = char:FindFirstChildOfClass("Humanoid")
         if not root or not hum2 then return end
 
-        -- Auto-equip bat if not currently holding one
         if not char:FindFirstChildOfClass("Tool") then
             local bat = getBat()
             if bat then pcall(function() hum2:EquipTool(bat) end) end
@@ -1243,12 +1320,10 @@ local function startAimbot()
         local myPos    = root.Position
         local targetPos = targetHRP.Position
 
-        -- Predict target position 0.14s ahead
         local predictPos = targetPos + targetVel * 0.14
         local direction  = predictPos - myPos
         local flatDir    = Vector3.new(direction.X, 0, direction.Z).Unit
 
-        -- Chase speed and vertical tracking
         local chaseSpeed   = 60
         local desiredHeight = targetPos.Y + 3.5
         local yVel = (desiredHeight - myPos.Y) * 19.5 + targetVel.Y * 0.8
@@ -1257,11 +1332,9 @@ local function startAimbot()
         end
         yVel = math.clamp(yVel, -70, 110)
 
-        -- Lerp velocity toward target
         local desiredVel = Vector3.new(flatDir.X * chaseSpeed, yVel, flatDir.Z * chaseSpeed)
         root.Velocity = root.Velocity:Lerp(desiredVel, 0.8)
 
-        -- Rotate toward predicted position using angular velocity
         local predictedPos = targetPos + targetVel * math.clamp(targetVel.Magnitude / 150, 0.05, 0.2)
         local toPredict    = predictedPos - myPos
         if toPredict.Magnitude > 0.1 then
@@ -1280,7 +1353,6 @@ local function startAimbot()
     end)
 end
 
--- Stop aimbot and restore state
 local function stopAimbot()
     aimbotActive = false
     if aimbotConnection then
@@ -1311,7 +1383,6 @@ local function toggleAimbot()
     end
 end
 
--- Export references used elsewhere in the script
 startBatAimbot = startAimbot
 stopBatAimbot  = stopAimbot
 
@@ -1339,7 +1410,7 @@ local function hideGui()
 end
 
 local vBtnFrame = Instance.new("Frame", gui)
-vBtnFrame.Name = "CyberHubVBtn"; vBtnFrame.Size = UDim2.new(0,72,0,36)
+vBtnFrame.Name = "NyxoraHubVBtn"; vBtnFrame.Size = UDim2.new(0,72,0,36)
 vBtnFrame.Position = UDim2.new(0,14,0.5,-18); vBtnFrame.BackgroundColor3 = C.accent
 vBtnFrame.BorderSizePixel = 0; vBtnFrame.Active = true; vBtnFrame.ZIndex = 20
 mkCorner(vBtnFrame, 8); mkYogaBorder(vBtnFrame, 1.2, 2.5, 140)
@@ -1348,7 +1419,8 @@ vBtnLbl.Size = UDim2.new(1,0,1,0); vBtnLbl.BackgroundTransparency = 1; vBtnLbl.T
 vBtnLbl.TextColor3 = Color3.fromRGB(255,255,255); vBtnLbl.Font = Enum.Font.GothamBlack
 vBtnLbl.TextSize = 14; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
-vBtnLbl.TextStrokeColor3 = Color3.fromRGB(0,40,120); vBtnLbl.ZIndex = 21
+vBtnLbl.TextStrokeColor3 = THEME.DARK_BLUE
+vBtnLbl.ZIndex = 21
 local vDragging,vDragInput,vDragStart,vStartPos=false,nil,nil,nil; local vMoved=false
 vBtnFrame.InputBegan:Connect(function(inp)
     if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
@@ -1386,57 +1458,98 @@ end
 -- ============================================================
 for i, def in ipairs(stackDefs) do
     local btnFrame = Instance.new("Frame", gui)
-    btnFrame.Name = "StackBtn_"..def.key; btnFrame.Size = UDim2.new(0,BTN_W,0,BTN_H)
-    btnFrame.Position = getDefaultStackPos(i); btnFrame.BackgroundColor3 = C.stackBg
-    btnFrame.BorderSizePixel = 0; btnFrame.Active = true; btnFrame.ZIndex = 15
+    btnFrame.Name = "StackBtn_"..def.key
+    btnFrame.Size = UDim2.new(0, BTN_W, 0, BTN_H)
+    btnFrame.Position = getDefaultStackPos(i)
+    btnFrame.BackgroundColor3 = C.stackBg
+    btnFrame.BackgroundTransparency = 0.2
+    btnFrame.BorderSizePixel = 0.1
+    btnFrame.Active = true
+    btnFrame.ZIndex = 15
     mkCorner(btnFrame, 8)
-    local bStroke = mkYogaBorder(btnFrame, 1.2, 2.5, 140)
-    stackWrappers[def.key] = btnFrame
+    
+    -- Main border with yoga effect
+    local bStroke = mkYogaBorder(btnFrame, 1.5, 3, 150)
+    
+    -- Label text
     local nl = Instance.new("TextLabel", btnFrame)
-    nl.Size = UDim2.new(1,-6,1,0); nl.Position = UDim2.new(0,3,0,0)
-    nl.BackgroundTransparency = 1; nl.Text = def.label; nl.TextColor3 = C.stackTxt
+    nl.Size = UDim2.new(1, -6, 1, 0)
+    nl.Position = UDim2.new(0, 3, 0, 0)
+    nl.BackgroundTransparency = 1
+    nl.Text = def.label
+    nl.TextColor3 = C.stackTxt
     nl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-    nl.TextSize = 10; nl.TextWrapped = true; nl.TextXAlignment = Enum.TextXAlignment.Center; nl.ZIndex = 6
+    nl.TextSize = 10
+    nl.TextWrapped = true
+    nl.TextXAlignment = Enum.TextXAlignment.Center
+    nl.ZIndex = 6
+    
+    stackWrappers[def.key] = btnFrame
+    
     local btnState = false
     local function setOn(on)
         btnState = on
-        TweenService:Create(btnFrame,TweenInfo.new(0.15),{BackgroundColor3=on and C.stackActBg or C.stackBg}):Play()
-        TweenService:Create(bStroke,TweenInfo.new(0.15),{Color=on and C.stackActBrd or C.stackBrd}):Play()
-        TweenService:Create(nl,TweenInfo.new(0.15),{TextColor3=on and C.stackActTxt or C.stackTxt}):Play()
+        TweenService:Create(btnFrame, TweenInfo.new(0.15), {
+            BackgroundColor3 = on and C.stackActBg or C.stackBg, 
+            BackgroundTransparency = on and 0.05 or 0.1
+        }):Play()
+        TweenService:Create(bStroke, TweenInfo.new(0.15), {Color = on and C.stackActBrd or C.stackBrd}):Play()
+        TweenService:Create(nl, TweenInfo.new(0.15), {TextColor3 = on and C.stackActTxt or C.stackTxt}):Play()
     end
-    stackBtnRefs[def.key] = {setOn=setOn}
-    btnFrame.MouseEnter:Connect(function() if not btnState then TweenService:Create(btnFrame,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(10,10,25)}):Play() end end)
-    btnFrame.MouseLeave:Connect(function() TweenService:Create(btnFrame,TweenInfo.new(0.1),{BackgroundColor3=btnState and C.stackActBg or C.stackBg}):Play() end)
+    
+    stackBtnRefs[def.key] = {setOn = setOn}
+    
+    -- Light Blue hover effect
+    btnFrame.MouseEnter:Connect(function()
+        if not btnState then
+            TweenService:Create(btnFrame, TweenInfo.new(0.1), {BackgroundColor3 = THEME.LIGHT_BLUE}):Play()
+        end
+    end)
+    
+    btnFrame.MouseLeave:Connect(function()
+        if not btnState then
+            TweenService:Create(btnFrame, TweenInfo.new(0.1), {BackgroundColor3 = btnState and C.stackActBg or C.stackBg}):Play()
+        end
+    end)
+    
     local function onTap()
-        if def.key=="tpDown" then doTpDown(); return end
-        if def.key=="carrySpeed" then State.speedToggled=not State.speedToggled; setOn(State.speedToggled); return end
-        local ns=not btnState; setOn(ns)
-        if def.key=="autoLeft" then
-            State.autoLeftEnabled=ns
+        if def.key == "tpDown" then doTpDown(); return end
+        if def.key == "carrySpeed" then 
+            State.speedToggled = not State.speedToggled
+            setOn(State.speedToggled)
+            return
+        end
+        local ns = not btnState
+        setOn(ns)
+        if def.key == "autoLeft" then
+            State.autoLeftEnabled = ns
             if ns and aimbotActive then toggleAimbot() end
             if ns then startAutoLeft() else stopAutoLeft() end
-        elseif def.key=="autoRight" then
-            State.autoRightEnabled=ns
+        elseif def.key == "autoRight" then
+            State.autoRightEnabled = ns
             if ns and aimbotActive then toggleAimbot() end
             if ns then startAutoRight() else stopAutoRight() end
-        elseif def.key=="aimbot" then
+        elseif def.key == "aimbot" then
             toggleAimbot()
-        elseif def.key=="lagger" then
-            State.laggerEnabled=ns
+        elseif def.key == "lagger" then
+            State.laggerEnabled = ns
             if ns then
-                State._prevCarry=State.carrySpeed; State._prevSpeed=State.speedToggled
-                State.speedToggled=false
+                State._prevCarry = State.carrySpeed
+                State._prevSpeed = State.speedToggled
+                State.speedToggled = false
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
-                if carryBox then carryBox.Text=tostring(State.laggerSpeed) end
+                if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
             else
-                State.carrySpeed=State._prevCarry or 30; State.speedToggled=State._prevSpeed or false
-                if carryBox then carryBox.Text=tostring(State.carrySpeed) end
+                State.carrySpeed = State._prevCarry or 30
+                State.speedToggled = State._prevSpeed or false
+                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
             end
-        elseif def.key=="drop" then
+        elseif def.key == "drop" then
             runDropBrainrot()
         end
     end
+    
     makeStackDraggable(btnFrame, onTap)
 end
 
@@ -1446,7 +1559,7 @@ end
 local function resetProgressBar() stealPctLbl.Text="0%"; progressFill.Size=UDim2.new(0,0,1,0) end
 
 -- ============================================================
--- TP DOWN (Folk Hub style: preserves rotation, fallback -20Y)
+-- TP DOWN
 -- ============================================================
 doTpDown = function()
     local char = LP.Character; if not char then return end
@@ -1464,7 +1577,7 @@ doTpDown = function()
 end
 
 -- ============================================================
--- DROP BRAINROT (Folk Hub style: ascend then raycast to floor)
+-- DROP BRAINROT
 -- ============================================================
 runDropBrainrot = function()
     if State.dropEnabled then return end
@@ -1695,7 +1808,7 @@ stopAntiRagdoll = function()
 end
 
 -- ============================================================
--- FPS BOOST & REMOVE ANIMATIONS SYSTEM (Integrated)
+-- FPS BOOST
 -- ============================================================
 local animRemoveConnections = {}
 
@@ -1875,17 +1988,42 @@ saveConfig = function()
     data.autoTpDown=State.autoTpDownEnabled
     data.autoTpDownY=State.autoTpDownY
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
+    
     for _, def in ipairs(stackDefs) do
         local w = stackWrappers[def.key]
-        if w then
-            data["BTNPOS_"..def.key.."_XS"]=w.Position.X.Scale
-            data["BTNPOS_"..def.key.."_XO"]=w.Position.X.Offset
-            data["BTNPOS_"..def.key.."_YS"]=w.Position.Y.Scale
-            data["BTNPOS_"..def.key.."_YO"]=w.Position.Y.Offset
+        if w and w.Parent then
+            data["BTNPOS_"..def.key.."_XS"] = w.Position.X.Scale
+            data["BTNPOS_"..def.key.."_XO"] = w.Position.X.Offset
+            data["BTNPOS_"..def.key.."_YS"] = w.Position.Y.Scale
+            data["BTNPOS_"..def.key.."_YO"] = w.Position.Y.Offset
         end
     end
+    
+    if hudFrame and hudFrame.Parent then
+        data["HUD_XS"] = hudFrame.Position.X.Scale
+        data["HUD_XO"] = hudFrame.Position.X.Offset
+        data["HUD_YS"] = hudFrame.Position.Y.Scale
+        data["HUD_YO"] = hudFrame.Position.Y.Offset
+    end
+    
+    if pTrack and pTrack.Parent then
+        data["PB_XS"] = pTrack.Position.X.Scale
+        data["PB_XO"] = pTrack.Position.X.Offset
+        data["PB_YS"] = pTrack.Position.Y.Scale
+        data["PB_YO"] = pTrack.Position.Y.Offset
+    end
+    
+    if mainOuter and mainOuter.Parent then
+        data["MAIN_XS"] = mainOuter.Position.X.Scale
+        data["MAIN_XO"] = mainOuter.Position.X.Offset
+        data["MAIN_YS"] = mainOuter.Position.Y.Scale
+        data["MAIN_YO"] = mainOuter.Position.Y.Offset
+    end
+    
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
-    if ok then pcall(function() _writefile(CONFIG_FILE, encoded) end) end
+    if ok then 
+        pcall(function() _writefile(CONFIG_FILE, encoded) end)
+    end
 end
 
 loadConfig = function()
@@ -1929,16 +2067,57 @@ loadConfig = function()
         State.uiLocked=true
         if lockBtn then
             lockBtn.Text="🔒  Lock Positions: ON"
-            lockBtn.BackgroundColor3=Color3.fromRGB(0,50,100)
-            lockBtn.TextColor3=Color3.fromRGB(0,200,255)
+            lockBtn.BackgroundColor3=THEME.DARK_BLUE
+            lockBtn.TextColor3=THEME.LIGHT_BLUE
         end
     end
-    for _, def in ipairs(stackDefs) do
-        local w=stackWrappers[def.key]
-        local xs=cfg["BTNPOS_"..def.key.."_XS"]; local xo=cfg["BTNPOS_"..def.key.."_XO"]
-        local ys=cfg["BTNPOS_"..def.key.."_YS"]; local yo=cfg["BTNPOS_"..def.key.."_YO"]
-        if w and xs and xo and ys and yo then w.Position=UDim2.new(xs,xo,ys,yo) end
-    end
+    
+    task.spawn(function()
+        task.wait(0.5)
+        for _, def in ipairs(stackDefs) do
+            local w = stackWrappers[def.key]
+            if w then
+                local xs = cfg["BTNPOS_"..def.key.."_XS"]
+                local xo = cfg["BTNPOS_"..def.key.."_XO"]
+                local ys = cfg["BTNPOS_"..def.key.."_YS"]
+                local yo = cfg["BTNPOS_"..def.key.."_YO"]
+                if xs and xo and ys and yo then
+                    w.Position = UDim2.new(xs, xo, ys, yo)
+                end
+            end
+        end
+        
+        if hudFrame then
+            local xs = cfg["HUD_XS"]
+            local xo = cfg["HUD_XO"]
+            local ys = cfg["HUD_YS"]
+            local yo = cfg["HUD_YO"]
+            if xs and xo and ys and yo then
+                hudFrame.Position = UDim2.new(xs, xo, ys, yo)
+            end
+        end
+        
+        if pTrack then
+            local xs = cfg["PB_XS"]
+            local xo = cfg["PB_XO"]
+            local ys = cfg["PB_YS"]
+            local yo = cfg["PB_YO"]
+            if xs and xo and ys and yo then
+                pTrack.Position = UDim2.new(xs, xo, ys, yo)
+            end
+        end
+        
+        if mainOuter then
+            local xs = cfg["MAIN_XS"]
+            local xo = cfg["MAIN_XO"]
+            local ys = cfg["MAIN_YS"]
+            local yo = cfg["MAIN_YO"]
+            if xs and xo and ys and yo then
+                mainOuter.Position = UDim2.new(xs, xo, ys, yo)
+            end
+        end
+    end)
+    
     for k in pairs(Keys) do
         local field="KEY_"..k
         if cfg[field] and Enum.KeyCode[cfg[field]] then
@@ -1956,32 +2135,32 @@ local function setupChar(char)
     if not h or not hrp then return end
     local head=char:FindFirstChild("Head")
     if head then
-        local oldBB=head:FindFirstChild("CyberHubBB"); if oldBB then oldBB:Destroy() end
+        local oldBB=head:FindFirstChild("NyxoraHubBB"); if oldBB then oldBB:Destroy() end
         local bb=Instance.new("BillboardGui",head)
-        bb.Name="CyberHubBB"
+        bb.Name="NyxoraHubBB"
         bb.Size=UDim2.new(0,160,0,52)
         bb.StudsOffset=Vector3.new(0,2.5,0)
         bb.AlwaysOnTop=true
         bb.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
         local titleLbl = Instance.new("TextLabel", bb)
-        titleLbl.Name = "CyberHubTitle"
+        titleLbl.Name = "NyxoraHubTitle"
         titleLbl.Size = UDim2.new(1,0,0,26)
         titleLbl.Position = UDim2.new(0,0,0,0)
         titleLbl.BackgroundTransparency = 1
-        titleLbl.Text = "CYBER HUB"
-        titleLbl.TextColor3 = Color3.fromRGB(0, 180, 255)
+        titleLbl.Text = "NYXORA HUB"
+        titleLbl.TextColor3 = THEME.LIGHT_BLUE
         titleLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-        titleLbl.TextSize = 14
+        titleLbl.TextSize = 8
         titleLbl.TextScaled = true
         titleLbl.TextStrokeTransparency = 0.1
         titleLbl.TextStrokeColor3 = Color3.new(0,0,0)
         local titleGrad2 = Instance.new("UIGradient", titleLbl)
         titleGrad2.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0,    Color3.fromRGB(0,80,200)),
-            ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80,180,255)),
-            ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255,255,255)),
-            ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80,180,255)),
-            ColorSequenceKeypoint.new(1,    Color3.fromRGB(0,80,200)),
+            ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
+            ColorSequenceKeypoint.new(0.35, THEME.LIGHT_BLUE),
+            ColorSequenceKeypoint.new(0.5,  THEME.TEXT_WHITE),
+            ColorSequenceKeypoint.new(0.65, THEME.LIGHT_BLUE),
+            ColorSequenceKeypoint.new(1,    THEME.OBSIDIAN),
         })
         titleGrad2.Rotation = 0
         task.spawn(function()
@@ -1997,9 +2176,9 @@ local function setupChar(char)
         speedBillLbl.Position=UDim2.new(0,0,0,26)
         speedBillLbl.BackgroundTransparency=1
         speedBillLbl.Text="SPEED: 0.0"
-        speedBillLbl.TextColor3=Color3.fromRGB(0,150,255)
+        speedBillLbl.TextColor3=THEME.LIGHT_BLUE
         speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
-        speedBillLbl.TextSize=11
+        speedBillLbl.TextSize=10
         speedBillLbl.TextScaled=true
         speedBillLbl.TextStrokeTransparency=0.1
         speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
@@ -2029,7 +2208,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ============================================================
--- INF JUMP + AUTO TP DOWN
+-- INF JUMP
 -- ============================================================
 RunService.Heartbeat:Connect(function()
     if not State.infJumpEnabled and not State.autoTpDownEnabled then return end
@@ -2059,7 +2238,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================================
--- SPEED + SPEED METER render loop
+-- SPEED 
 -- ============================================================
 RunService.RenderStepped:Connect(function()
     if not (h and hrp) then return end; if State._tpInProgress then return end
@@ -2075,7 +2254,7 @@ RunService.RenderStepped:Connect(function()
     pcall(function()
         local head2 = LP.Character and LP.Character:FindFirstChild("Head")
         if head2 then
-            local bb2 = head2:FindFirstChild("CyberHubBB")
+            local bb2 = head2:FindFirstChild("NyxoraHubBB")
             local sl = bb2 and bb2:FindFirstChild("SpeedBillLbl")
             if sl then
                 local vel = hrp.Velocity
