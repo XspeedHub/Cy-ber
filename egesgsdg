@@ -938,7 +938,7 @@ end)
 carryBox = makeInputRow("Carry Speed", State.carrySpeed, function(n)
     if n > 0 and n <= 500 then State.carrySpeed = n; pcall(saveConfig) end
 end)
-laggerBox = makeInputRow("Lagger Speed", State.laggerSpeed, function(n)
+laggerBox = makeInputRow("Lagger Carry", State.laggerSpeed, function(n)
     if n > 0 and n <= 500 then State.laggerSpeed = n; pcall(saveConfig) end
 end)
 
