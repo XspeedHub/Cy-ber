@@ -110,9 +110,7 @@ local DROP_ASCEND_SPEED    = 150
 -- BAT NAMES LIST
 -- ============================================================
 local BAT_NAMES = {
-    "Bat", "Slap", "Iron Slap", "Gold Slap", "Diamond Slap",
-    "Emerald Slap", "Ruby Slap", "Dark Matter Slap", "Flame Slap",
-    "Nuclear Slap", "Galaxy Slap", "Glitched Slap"
+    
 }
 
 -- ============================================================
