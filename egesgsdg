@@ -995,13 +995,6 @@ for i, mname in ipairs(modeNames) do
     modeBtns[mname] = b
 end
 
-makeGap(8)
-makeSectionHeader("Auto Movement")
-makeGap(2)
-makeKeybindRow("Auto Left", Keys.autoLeft, function(k) Keys.autoLeft=k end, "autoLeft")
-makeKeybindRow("Auto Right", Keys.autoRight, function(k) Keys.autoRight=k end, "autoRight")
-makeGap(8)
-
 makeSectionHeader("Aimbot")
 makeGap(2)
 setBatCounter = makeToggleRow("Bat Counter", false, function(on)
