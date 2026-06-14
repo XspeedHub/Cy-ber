@@ -115,6 +115,34 @@ local BAT_NAMES = {
     "Nuclear Slap", "Galaxy Slap", "Glitched Slap"
 }
 
+-- ============================================================
+-- MOVE PROXY SYSTEM 
+-- ============================================================
+local moveProxy = nil
+
+local function ensureProxy()
+    local c = LP.Character; if not c then return nil end
+    local root = c:FindFirstChild("HumanoidRootPart"); if not root then return nil end
+    if moveProxy and moveProxy.Parent == c then return moveProxy end
+    if moveProxy then moveProxy:Destroy() end
+    moveProxy = Instance.new("Part")
+    moveProxy.Name = "NYXORA_MoveProxy"
+    moveProxy.Size = Vector3.new(1,1,1)
+    moveProxy.Transparency = 1
+    moveProxy.CanCollide = false
+    moveProxy.Massless = true
+    moveProxy.Parent = c
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = root
+    weld.Part1 = moveProxy
+    weld.Parent = moveProxy
+    return moveProxy
+end
+
+local function destroyProxy()
+    if moveProxy then moveProxy:Destroy(); moveProxy = nil end
+end
+
 local State = {
     normalSpeed=60, carrySpeed=30, laggerSpeed=11,
     speedToggled=false, laggerEnabled=false,
@@ -141,7 +169,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=60; local BTN_H=53; local BTN_GAP=7; local COLS=2
+local BTN_W=63; local BTN_H=50; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
@@ -226,7 +254,7 @@ local C = {
     rowValue    = THEME.LIGHT_BLUE,
     rowHov      = THEME.OBSIDIAN_LIGHT,
     inputBg     = THEME.OBSIDIAN,
-    inputBorder = THEME.DARK_BLUE,
+    inputBorder = THEME.LIGHT_BLUE,
     inputFocus  = THEME.LIGHT_BLUE,
     inputTxt    = Color3.fromRGB(200, 200, 220),
     pillOff     = Color3.fromRGB(15, 15, 25),
@@ -247,13 +275,13 @@ local C = {
     btnTxt      = THEME.LIGHT_BLUE,
     btnHov      = THEME.DARK_BLUE,
     stackBg     = THEME.OBSIDIAN,
-    stackBrd    = THEME.DARK_BLUE,
-    stackTxt    = Color3.fromRGB(100, 150, 220),
+    stackBrd    = THEME.LIGHT_BLUE,
+    stackTxt    = Color3.fromRGB(100, 200, 225),
     stackActBg  = THEME.DARK_BLUE,
-    stackActBrd = THEME.LIGHT_BLUE,
-    stackActTxt = Color3.fromRGB(255, 255, 255),
+    stackActBrd = THEME.WHITE,
+    stackActTxt = Color3.fromRGB(8, 8, 12),
     stackDot    = THEME.DARK_BLUE,
-    stackDotOn  = THEME.LIGHT_BLUE,
+    stackDotOn  = THEME.WHITE,
     infoBg      = THEME.OBSIDIAN,
     infoBrd     = THEME.DARK_BLUE,
     infoTxt     = Color3.fromRGB(80, 80, 120),
@@ -1169,7 +1197,7 @@ fw.Size = UDim2.new(1,0,0,22); fw.BackgroundTransparency = 1
 fw.BorderSizePixel = 0; fw.LayoutOrder = LO()
 local fl = Instance.new("TextLabel", fw)
 fl.Size = UDim2.new(1,0,1,0); fl.BackgroundTransparency = 1
-fl.Text = "NYXORA HUB  ·  v1.0"; fl.TextColor3 = THEME.DARK_BLUE
+fl.Text = "NYXORA HUB"; fl.TextColor3 = THEME.DARK_BLUE
 fl.FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic)
 fl.TextSize = 10; fl.TextXAlignment = Enum.TextXAlignment.Center
 
@@ -1672,7 +1700,7 @@ stopMedusaCounter=function()
 end
 
 -- ============================================================
--- AUTO LEFT / RIGHT
+-- AUTO LEFT / RIGHT (WITH MOVE PROXY)
 -- ============================================================
 local function faceSouth() pcall(function() local c=LP.Character; if not c then return end; local root=c:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(root.Position)*CFrame.Angles(0,0,0) end end) end
 local function faceNorth() pcall(function() local c=LP.Character; if not c then return end; local root=c:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(root.Position)*CFrame.Angles(0,math.rad(180),0) end end) end
@@ -1685,29 +1713,31 @@ startAutoLeft=function()
         local root=c:FindFirstChild("HumanoidRootPart"); local hum2=c:FindFirstChildOfClass("Humanoid")
         if not root or not hum2 then return end
         local spd=State.normalSpeed
+        local prx=ensureProxy(); if not prx then return end
         if State.autoLeftPhase==1 then
             local tgt=Vector3.new(POS.L1.X,root.Position.Y,POS.L1.Z)
             if (tgt-root.Position).Magnitude<1 then
                 State.autoLeftPhase=2
                 local d=(POS.L2-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-                hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd); return
+                hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd); return
             end
             local d=(POS.L1-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-            hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd)
+            hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd)
         elseif State.autoLeftPhase==2 then
             local tgt=Vector3.new(POS.L2.X,root.Position.Y,POS.L2.Z)
             if (tgt-root.Position).Magnitude<1 then
-                hum2:Move(Vector3.zero,false); root.AssemblyLinearVelocity=Vector3.zero
+                hum2:Move(Vector3.zero,false); prx.AssemblyLinearVelocity=Vector3.zero
                 State.autoLeftEnabled=false
                 if Conns.autoLeft then Conns.autoLeft:Disconnect(); Conns.autoLeft=nil end
                 State.autoLeftPhase=1
                 if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+                destroyProxy()
                 State.speedToggled=true
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(true) end
                 faceSouth(); return
             end
             local d=(POS.L2-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-            hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd)
+            hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd)
         end
     end)
 end
@@ -1715,6 +1745,7 @@ end
 stopAutoLeft=function()
     if Conns.autoLeft then Conns.autoLeft:Disconnect(); Conns.autoLeft=nil end; State.autoLeftPhase=1
     local c=LP.Character; if c then local hum2=c:FindFirstChildOfClass("Humanoid"); if hum2 then hum2:Move(Vector3.zero,false) end end
+    destroyProxy()
     if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
 end
 
@@ -1726,29 +1757,31 @@ startAutoRight=function()
         local root=c:FindFirstChild("HumanoidRootPart"); local hum2=c:FindFirstChildOfClass("Humanoid")
         if not root or not hum2 then return end
         local spd=State.normalSpeed
+        local prx=ensureProxy(); if not prx then return end
         if State.autoRightPhase==1 then
             local tgt=Vector3.new(POS.R1.X,root.Position.Y,POS.R1.Z)
             if (tgt-root.Position).Magnitude<1 then
                 State.autoRightPhase=2
                 local d=(POS.R2-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-                hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd); return
+                hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd); return
             end
             local d=(POS.R1-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-            hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd)
+            hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd)
         elseif State.autoRightPhase==2 then
             local tgt=Vector3.new(POS.R2.X,root.Position.Y,POS.R2.Z)
             if (tgt-root.Position).Magnitude<1 then
-                hum2:Move(Vector3.zero,false); root.AssemblyLinearVelocity=Vector3.zero
+                hum2:Move(Vector3.zero,false); prx.AssemblyLinearVelocity=Vector3.zero
                 State.autoRightEnabled=false
                 if Conns.autoRight then Conns.autoRight:Disconnect(); Conns.autoRight=nil end
                 State.autoRightPhase=1
                 if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+                destroyProxy()
                 State.speedToggled=true
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(true) end
                 faceNorth(); return
             end
             local d=(POS.R2-root.Position); local mv=Vector3.new(d.X,0,d.Z).Unit
-            hum2:Move(mv,false); root.AssemblyLinearVelocity=Vector3.new(mv.X*spd,root.AssemblyLinearVelocity.Y,mv.Z*spd)
+            hum2:Move(mv,false); prx.AssemblyLinearVelocity=Vector3.new(mv.X*spd,prx.AssemblyLinearVelocity.Y,mv.Z*spd)
         end
     end)
 end
@@ -1756,6 +1789,7 @@ end
 stopAutoRight=function()
     if Conns.autoRight then Conns.autoRight:Disconnect(); Conns.autoRight=nil end; State.autoRightPhase=1
     local c=LP.Character; if c then local hum2=c:FindFirstChildOfClass("Humanoid"); if hum2 then hum2:Move(Vector3.zero,false) end end
+    destroyProxy()
     if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
 end
 
