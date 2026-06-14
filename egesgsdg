@@ -112,7 +112,7 @@ local DROP_ASCEND_SPEED    = 150
 local BAT_NAMES = {
     "Bat", "Slap", "Iron Slap", "Gold Slap", "Diamond Slap",
     "Emerald Slap", "Ruby Slap", "Dark Matter Slap", "Flame Slap",
-    "Nuclear Slap", "Galaxy Slap", "Glitched Slap","Medusa"
+    "Nuclear Slap", "Galaxy Slap", "Glitched Slap", "Medusa"
 }
 
 -- ============================================================
@@ -1261,7 +1261,7 @@ stopBatCounter=function()
 end
 
 -- ============================================================
--- BAT AIMBOT
+-- BAT AIMBOT (NO AUTO-EQUIP)
 -- ============================================================
 local aimbotActive = false
 local aimbotConnection = nil
@@ -1271,17 +1271,6 @@ local function getBat()
     for _, name in ipairs(BAT_NAMES) do
         local tool = char:FindFirstChild(name)
         if tool and tool:IsA("Tool") then return tool end
-    end
-    local backpack = LP:FindFirstChild("Backpack")
-    if backpack then
-        for _, name in ipairs(BAT_NAMES) do
-            local tool = backpack:FindFirstChild(name)
-            if tool and tool:IsA("Tool") then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then pcall(function() hum:EquipTool(tool) end) end
-                return tool
-            end
-        end
     end
     return nil
 end
@@ -1333,10 +1322,7 @@ local function startAimbot()
         local hum2 = char:FindFirstChildOfClass("Humanoid")
         if not root or not hum2 then return end
 
-        if not char:FindFirstChildOfClass("Tool") then
-            local bat = getBat()
-            if bat then pcall(function() hum2:EquipTool(bat) end) end
-        end
+        -- AUTO-EQUIP REMOVED! You can now manually switch to Medusa.
 
         local _, _, _, targetHRP = getClosestEnemy()
         if not targetHRP then
