@@ -36,6 +36,21 @@ local _writefile= writefile or (syn and syn.writefile) or (getgenv and getgenv()
 local getconnections = getconnections or get_signal_cons or getconnects or (syn and syn.get_signal_cons)
 
 -- ============================================================
+-- MUTUAL EXCLUSIVITY FUNCTION
+-- ============================================================
+local function ensureMutualExclusive(activeKey)
+    if activeKey == "autoLeft" and State.autoRightEnabled then
+        State.autoRightEnabled = false
+        if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+        stopAutoRight()
+    elseif activeKey == "autoRight" and State.autoLeftEnabled then
+        State.autoLeftEnabled = false
+        if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+        stopAutoLeft()
+    end
+end
+
+-- ============================================================
 -- LIGHT BLUE ESP + SMALL NAME TAG
 -- ============================================================
 
@@ -938,7 +953,7 @@ end)
 carryBox = makeInputRow("Carry Speed", State.carrySpeed, function(n)
     if n > 0 and n <= 500 then State.carrySpeed = n; pcall(saveConfig) end
 end)
-laggerBox = makeInputRow("Lagger Carry", State.laggerSpeed, function(n)
+laggerBox = makeInputRow("Lagger Speed", State.laggerSpeed, function(n)
     if n > 0 and n <= 500 then State.laggerSpeed = n; pcall(saveConfig) end
 end)
 
@@ -1315,8 +1330,6 @@ local function startAimbot()
         local hum2 = char:FindFirstChildOfClass("Humanoid")
         if not root or not hum2 then return end
 
-        -- AUTO-EQUIP REMOVED! You can now manually switch to Medusa.
-
         local _, _, _, targetHRP = getClosestEnemy()
         if not targetHRP then
             swingCurrentBat()
@@ -1461,7 +1474,7 @@ do
 end
 
 -- ============================================================
--- STACK BUTTONS
+-- STACK BUTTONS (WITH MUTUAL EXCLUSIVITY)
 -- ============================================================
 for i, def in ipairs(stackDefs) do
     local btnFrame = Instance.new("Frame", gui)
@@ -1529,14 +1542,35 @@ for i, def in ipairs(stackDefs) do
         local ns = not btnState
         setOn(ns)
         if def.key == "autoLeft" then
+            -- Ensure mutual exclusivity - turn off auto right if turning on auto left
+            if ns then
+                ensureMutualExclusive("autoLeft")
+            end
             State.autoLeftEnabled = ns
             if ns and aimbotActive then toggleAimbot() end
             if ns then startAutoLeft() else stopAutoLeft() end
         elseif def.key == "autoRight" then
+            -- Ensure mutual exclusivity - turn off auto left if turning on auto right
+            if ns then
+                ensureMutualExclusive("autoRight")
+            end
             State.autoRightEnabled = ns
             if ns and aimbotActive then toggleAimbot() end
             if ns then startAutoRight() else stopAutoRight() end
         elseif def.key == "aimbot" then
+            -- Turn off both auto paths when turning aimbot ON
+            if not ns then -- When turning aimbot ON (ns = true)
+                if State.autoLeftEnabled then
+                    State.autoLeftEnabled = false
+                    if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+                    stopAutoLeft()
+                end
+                if State.autoRightEnabled then
+                    State.autoRightEnabled = false
+                    if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+                    stopAutoRight()
+                end
+            end
             toggleAimbot()
         elseif def.key == "lagger" then
             State.laggerEnabled = ns
@@ -1563,7 +1597,6 @@ end
 -- ============================================================
 -- HELPERS & CORE FUNCTIONS
 -- ============================================================
-local function resetProgressBar() stealPctLbl.Text="0%"; progressFill.Size=UDim2.new(0,0,1,0) end
 
 -- ============================================================
 -- TP DOWN
@@ -2151,54 +2184,47 @@ local function setupChar(char)
         local oldBB=head:FindFirstChild("NyxoraHubBB"); if oldBB then oldBB:Destroy() end
         local bb=Instance.new("BillboardGui",head)
         bb.Name="NyxoraHubBB"
-        bb.Size=UDim2.new(0,160,0,52)
+        bb.Size=UDim2.new(0,120,0,30)
         bb.StudsOffset=Vector3.new(0,2.5,0)
         bb.AlwaysOnTop=true
         bb.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-        local titleLbl = Instance.new("TextLabel", bb)
-        titleLbl.Name = "NyxoraHubTitle"
-        titleLbl.Size = UDim2.new(1,0,0,26)
-        titleLbl.Position = UDim2.new(0,0,0,0)
-        titleLbl.BackgroundTransparency = 1
-        titleLbl.Text = "NYXORA HUB"
-        titleLbl.TextColor3 = THEME.LIGHT_BLUE
-        titleLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-        titleLbl.TextSize = 8
-        titleLbl.TextScaled = true
-        titleLbl.TextStrokeTransparency = 0.1
-        titleLbl.TextStrokeColor3 = Color3.new(0,0,0)
-        local titleGrad2 = Instance.new("UIGradient", titleLbl)
-        titleGrad2.Color = ColorSequence.new({
+        
+        -- Speed display with gradient animation
+        local speedBillLbl=Instance.new("TextLabel",bb)
+        speedBillLbl.Name="SpeedBillLbl"
+        speedBillLbl.Size=UDim2.new(1,0,1,0)
+        speedBillLbl.Position=UDim2.new(0,0,0,0)
+        speedBillLbl.BackgroundTransparency=1
+        speedBillLbl.Text="SPEED: 0.0"
+        speedBillLbl.TextColor3=THEME.LIGHT_BLUE
+        speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
+        speedBillLbl.TextSize=12
+        speedBillLbl.TextScaled=true
+        speedBillLbl.TextStrokeTransparency=0.1
+        speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
+        
+        -- Add gradient animation to speed display
+        local speedGrad = Instance.new("UIGradient", speedBillLbl)
+        speedGrad.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
             ColorSequenceKeypoint.new(0.35, THEME.LIGHT_BLUE),
             ColorSequenceKeypoint.new(0.5,  THEME.TEXT_WHITE),
             ColorSequenceKeypoint.new(0.65, THEME.LIGHT_BLUE),
             ColorSequenceKeypoint.new(1,    THEME.OBSIDIAN),
         })
-        titleGrad2.Rotation = 0
+        speedGrad.Rotation = 0
         task.spawn(function()
-            while titleLbl and titleLbl.Parent do
-                TweenService:Create(titleGrad2, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
+            while speedBillLbl and speedBillLbl.Parent do
+                TweenService:Create(speedGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
                 task.wait(1.6)
-                titleGrad2.Rotation = 0
+                speedGrad.Rotation = 0
             end
         end)
-        local speedBillLbl=Instance.new("TextLabel",bb)
-        speedBillLbl.Name="SpeedBillLbl"
-        speedBillLbl.Size=UDim2.new(1,0,0,24)
-        speedBillLbl.Position=UDim2.new(0,0,0,26)
-        speedBillLbl.BackgroundTransparency=1
-        speedBillLbl.Text="SPEED: 0.0"
-        speedBillLbl.TextColor3=THEME.LIGHT_BLUE
-        speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
-        speedBillLbl.TextSize=10
-        speedBillLbl.TextScaled=true
-        speedBillLbl.TextStrokeTransparency=0.1
-        speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
     end
     if Conns.unwalk then Conns.unwalk:Disconnect(); Conns.unwalk = nil end
     unwalkAnimateRef = nil
     if State.unwalkEnabled then task.wait(0.3); doStartUnwalk() end
+    if State.lockInEnabled then task.wait(0.3); saveOriginalAnims(char); applyLockInAnims(char) end
     stopAntiRagdoll()
     if State.antiRagdollEnabled then task.wait(0.5); startAntiRagdoll() end
     if State.medusaCounterEnabled then setupMedusaCounter(char) end
@@ -2279,7 +2305,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================================
--- INPUT HANDLER
+-- INPUT HANDLER (WITH MUTUAL EXCLUSIVITY)
 -- ============================================================
 UIS.InputBegan:Connect(function(inp,gp)
     if gp then return end
@@ -2292,12 +2318,30 @@ UIS.InputBegan:Connect(function(inp,gp)
         State.speedToggled=not State.speedToggled
         if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
     elseif kc==Keys.autoLeft then
-        State.autoLeftEnabled=not State.autoLeftEnabled
+        local newState = not State.autoLeftEnabled
+        if newState then
+            -- Turn off auto right if it's on
+            if State.autoRightEnabled then
+                State.autoRightEnabled = false
+                if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+                stopAutoRight()
+            end
+        end
+        State.autoLeftEnabled = newState
         if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(State.autoLeftEnabled) end
         if State.autoLeftEnabled and aimbotActive then toggleAimbot() end
         if State.autoLeftEnabled then startAutoLeft() else stopAutoLeft() end
     elseif kc==Keys.autoRight then
-        State.autoRightEnabled=not State.autoRightEnabled
+        local newState = not State.autoRightEnabled
+        if newState then
+            -- Turn off auto left if it's on
+            if State.autoLeftEnabled then
+                State.autoLeftEnabled = false
+                if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+                stopAutoLeft()
+            end
+        end
+        State.autoRightEnabled = newState
         if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(State.autoRightEnabled) end
         if State.autoRightEnabled and aimbotActive then toggleAimbot() end
         if State.autoRightEnabled then startAutoRight() else stopAutoRight() end
@@ -2317,6 +2361,19 @@ UIS.InputBegan:Connect(function(inp,gp)
         end
     elseif kc==Keys.tpDown then doTpDown()
     elseif kc==Keys.aimbot then
+        -- Turn off both auto paths when turning aimbot ON
+        if not aimbotActive then
+            if State.autoLeftEnabled then
+                State.autoLeftEnabled = false
+                if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+                stopAutoLeft()
+            end
+            if State.autoRightEnabled then
+                State.autoRightEnabled = false
+                if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+                stopAutoRight()
+            end
+        end
         toggleAimbot()
     elseif kc==Keys.guiHide then
         if isKb then State.guiVisible=not State.guiVisible; if State.guiVisible then showGui(); vBtnLbl.Text="CLOSE" else hideGui(); vBtnLbl.Text="OPEN" end end
