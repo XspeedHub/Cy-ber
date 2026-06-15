@@ -39,6 +39,7 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 -- MUTUAL EXCLUSIVITY FUNCTION
 -- ============================================================
 local function ensureMutualExclusive(activeKey)
+    -- Auto Left / Auto Right mutual exclusivity
     if activeKey == "autoLeft" and State.autoRightEnabled then
         State.autoRightEnabled = false
         if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
@@ -47,6 +48,41 @@ local function ensureMutualExclusive(activeKey)
         State.autoLeftEnabled = false
         if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
         stopAutoLeft()
+    -- Carry Speed / Lagger mutual exclusivity
+    elseif activeKey == "carrySpeed" and State.laggerEnabled then
+        State.laggerEnabled = false
+        if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
+        if carryBox then carryBox.Text = tostring(State.normalSpeed) end
+        modeStatusLbl.Text = "Mode: Normal"
+        -- Update mode buttons UI
+        for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+            local b = modeBtns[m]
+            if b then
+                local isActive = (m == "Normal")
+                TweenService:Create(b, TweenInfo.new(0.15), {
+                    BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                    BackgroundTransparency = isActive and 0 or 1,
+                    TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                }):Play()
+            end
+        end
+    elseif activeKey == "lagger" and State.speedToggled then
+        State.speedToggled = false
+        if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+        if carryBox then carryBox.Text = tostring(State.normalSpeed) end
+        modeStatusLbl.Text = "Mode: Normal"
+        -- Update mode buttons UI
+        for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+            local b = modeBtns[m]
+            if b then
+                local isActive = (m == "Normal")
+                TweenService:Create(b, TweenInfo.new(0.15), {
+                    BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                    BackgroundTransparency = isActive and 0 or 1,
+                    TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                }):Play()
+            end
+        end
     end
 end
 
@@ -987,13 +1023,26 @@ local function setModeActive(active)
         TweenService:Create(b,TweenInfo.new(0.15),{BackgroundColor3=isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),BackgroundTransparency=isActive and 0 or 1,TextColor3=isActive and C.modeBtnActTx or C.modeBtnTxt}):Play()
     end
     modeStatusLbl.Text = "Mode: " .. active
-    if active == "Normal" then State.speedToggled=false; State.laggerEnabled=false
+    if active == "Normal" then 
+        State.speedToggled=false; State.laggerEnabled=false
         if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
-    elseif active == "Carry" then State.speedToggled=true; State.laggerEnabled=false
+    elseif active == "Carry" then 
+        -- Turn off lagger if turning on carry
+        if State.laggerEnabled then
+            State.laggerEnabled = false
+            if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
+        end
+        State.speedToggled=true; 
         if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(true) end
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
-    elseif active == "Lagger" then State.speedToggled=false; State.laggerEnabled=true
+    elseif active == "Lagger" then 
+        -- Turn off carry speed if turning on lagger
+        if State.speedToggled then
+            State.speedToggled = false
+            if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+        end
+        State.laggerEnabled=true
         if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(true) end
     end
@@ -1535,8 +1584,43 @@ for i, def in ipairs(stackDefs) do
     local function onTap()
         if def.key == "tpDown" then doTpDown(); return end
         if def.key == "carrySpeed" then 
-            State.speedToggled = not State.speedToggled
+            local ns = not btnState
+            -- Ensure mutual exclusivity - turn off lagger if turning on carry speed
+            if ns then
+                ensureMutualExclusive("carrySpeed")
+            end
+            State.speedToggled = ns
             setOn(State.speedToggled)
+            -- Update mode status display
+            if ns then
+                modeStatusLbl.Text = "Mode: Carry"
+                -- Update mode buttons UI
+                for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                    local b = modeBtns[m]
+                    if b then
+                        local isActive = (m == "Carry")
+                        TweenService:Create(b, TweenInfo.new(0.15), {
+                            BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                            BackgroundTransparency = isActive and 0 or 1,
+                            TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                        }):Play()
+                    end
+                end
+            else
+                modeStatusLbl.Text = "Mode: Normal"
+                -- Update mode buttons UI
+                for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                    local b = modeBtns[m]
+                    if b then
+                        local isActive = (m == "Normal")
+                        TweenService:Create(b, TweenInfo.new(0.15), {
+                            BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                            BackgroundTransparency = isActive and 0 or 1,
+                            TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                        }):Play()
+                    end
+                end
+            end
             return
         end
         local ns = not btnState
@@ -1559,7 +1643,7 @@ for i, def in ipairs(stackDefs) do
             if ns then startAutoRight() else stopAutoRight() end
         elseif def.key == "aimbot" then
             -- Turn off both auto paths when turning aimbot ON
-            if not ns then -- When turning aimbot ON (ns = true)
+            if not aimbotActive then
                 if State.autoLeftEnabled then
                     State.autoLeftEnabled = false
                     if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
@@ -1573,6 +1657,10 @@ for i, def in ipairs(stackDefs) do
             end
             toggleAimbot()
         elseif def.key == "lagger" then
+            -- Ensure mutual exclusivity - turn off carry speed if turning on lagger
+            if ns then
+                ensureMutualExclusive("lagger")
+            end
             State.laggerEnabled = ns
             if ns then
                 State._prevCarry = State.carrySpeed
@@ -1580,11 +1668,53 @@ for i, def in ipairs(stackDefs) do
                 State.speedToggled = false
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
                 if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
+                modeStatusLbl.Text = "Mode: Lagger"
+                -- Update mode buttons UI
+                for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                    local b = modeBtns[m]
+                    if b then
+                        local isActive = (m == "Lagger")
+                        TweenService:Create(b, TweenInfo.new(0.15), {
+                            BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                            BackgroundTransparency = isActive and 0 or 1,
+                            TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                        }):Play()
+                    end
+                end
             else
                 State.carrySpeed = State._prevCarry or 30
                 State.speedToggled = State._prevSpeed or false
                 if carryBox then carryBox.Text = tostring(State.carrySpeed) end
                 if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
+                if State.speedToggled then
+                    modeStatusLbl.Text = "Mode: Carry"
+                    -- Update mode buttons UI
+                    for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                        local b = modeBtns[m]
+                        if b then
+                            local isActive = (m == "Carry")
+                            TweenService:Create(b, TweenInfo.new(0.15), {
+                                BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                                BackgroundTransparency = isActive and 0 or 1,
+                                TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                            }):Play()
+                        end
+                    end
+                else
+                    modeStatusLbl.Text = "Mode: Normal"
+                    -- Update mode buttons UI
+                    for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                        local b = modeBtns[m]
+                        if b then
+                            local isActive = (m == "Normal")
+                            TweenService:Create(b, TweenInfo.new(0.15), {
+                                BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                                BackgroundTransparency = isActive and 0 or 1,
+                                TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                            }):Play()
+                        end
+                    end
+                end
             end
         elseif def.key == "drop" then
             runDropBrainrot()
@@ -2315,7 +2445,51 @@ UIS.InputBegan:Connect(function(inp,gp)
     local kc=inp.KeyCode; if kc==Enum.KeyCode.Unknown then return end
 
     if kc==Keys.speed then
-        State.speedToggled=not State.speedToggled
+        local newState = not State.speedToggled
+        -- Turn off lagger if turning on carry speed
+        if newState and State.laggerEnabled then
+            State.laggerEnabled = false
+            if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
+            modeStatusLbl.Text = "Mode: Carry"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Carry")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        elseif not newState and not State.laggerEnabled then
+            modeStatusLbl.Text = "Mode: Normal"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Normal")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        elseif not newState and State.laggerEnabled then
+            modeStatusLbl.Text = "Mode: Lagger"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Lagger")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        end
+        State.speedToggled = newState
         if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
     elseif kc==Keys.autoLeft then
         local newState = not State.autoLeftEnabled
@@ -2348,15 +2522,60 @@ UIS.InputBegan:Connect(function(inp,gp)
     elseif kc==Keys.drop then
         runDropBrainrot()
     elseif kc==Keys.lagger then
-        State.laggerEnabled=not State.laggerEnabled
+        local newState = not State.laggerEnabled
+        -- Turn off carry speed if turning on lagger
+        if newState and State.speedToggled then
+            State.speedToggled = false
+            if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+            modeStatusLbl.Text = "Mode: Lagger"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Lagger")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        elseif not newState and not State.speedToggled then
+            modeStatusLbl.Text = "Mode: Normal"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Normal")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        elseif not newState and State.speedToggled then
+            modeStatusLbl.Text = "Mode: Carry"
+            for _, m in ipairs({"Normal", "Carry", "Lagger"}) do
+                local b = modeBtns[m]
+                if b then
+                    local isActive = (m == "Carry")
+                    TweenService:Create(b, TweenInfo.new(0.15), {
+                        BackgroundColor3 = isActive and C.modeBtnActBg or Color3.fromRGB(0,0,0),
+                        BackgroundTransparency = isActive and 0 or 1,
+                        TextColor3 = isActive and C.modeBtnActTx or C.modeBtnTxt
+                    }):Play()
+                end
+            end
+        end
+        State.laggerEnabled = newState
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(State.laggerEnabled) end
         if State.laggerEnabled then
-            State._prevCarry=State.carrySpeed; State._prevSpeed=State.speedToggled; State.speedToggled=false
-            if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
-            if carryBox then carryBox.Text=tostring(State.laggerSpeed) end
+            State._prevCarry = State.carrySpeed
+            State._prevSpeed = State.speedToggled
+            if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
         else
-            State.carrySpeed=State._prevCarry or 30; State.speedToggled=State._prevSpeed or false
-            if carryBox then carryBox.Text=tostring(State.carrySpeed) end
+            State.carrySpeed = State._prevCarry or 30
+            State.speedToggled = State._prevSpeed or false
+            if carryBox then carryBox.Text = tostring(State.carrySpeed) end
             if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
         end
     elseif kc==Keys.tpDown then doTpDown()
