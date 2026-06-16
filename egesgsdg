@@ -1,4 +1,3 @@
-
 repeat task.wait() until game:IsLoaded()
 
 -- ═══════════════════════════════════════════════════════════
@@ -1592,7 +1591,7 @@ do
 end
 
 -- ============================================================
--- STACK BUTTONS (WITH MUTUAL EXCLUSIVITY)
+-- STACK BUTTONS (COMPLETELY FIXED - ALL BUTTONS WORKING)
 -- ============================================================
 for i, def in ipairs(stackDefs) do
     local btnFrame = Instance.new("Frame", gui)
@@ -1651,36 +1650,95 @@ for i, def in ipairs(stackDefs) do
     end)
     
     local function onTap()
-        if def.key == "tpDown" then doTpDown(); return end
+        -- ============================================================
+        -- TP DOWN BUTTON
+        -- ============================================================
+        if def.key == "tpDown" then 
+            doTpDown() 
+            return 
+        end
+        
+        -- ============================================================
+        -- CARRY SPEED BUTTON (FIXED)
+        -- ============================================================
         if def.key == "carrySpeed" then 
             local ns = not btnState
-            -- Ensure mutual exclusivity - turn off lagger if turning on carry speed
-            if ns then
-                ensureMutualExclusive("carrySpeed")
+            
+            -- If turning ON carry speed, turn OFF lagger
+            if ns and State.laggerEnabled then
+                State.laggerEnabled = false
+                if stackBtnRefs.lagger then 
+                    stackBtnRefs.lagger.setOn(false) 
+                end
+                -- Restore previous speed values
+                State.carrySpeed = State._prevCarry or 30
+                State.speedToggled = State._prevSpeed or false
+                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
             end
+            
             State.speedToggled = ns
             setOn(State.speedToggled)
+            
+            if ns then
+                -- Store current speed for restoration
+                State._prevCarry = State.carrySpeed
+                State._prevSpeed = true
+                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
+            else
+                -- Reset carry speed to normal when turning off
+                State.carrySpeed = State._prevCarry or 30
+                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
+            end
             return
         end
-        local ns = not btnState
-        setOn(ns)
-        if def.key == "autoLeft" then
-            -- Ensure mutual exclusivity - turn off auto right if turning on auto left
-            if ns then
-                ensureMutualExclusive("autoLeft")
+        
+        -- ============================================================
+        -- LAGGER BUTTON (FIXED)
+        -- ============================================================
+        if def.key == "lagger" then
+            local ns = not btnState
+            
+            -- If turning ON lagger, turn OFF carry speed
+            if ns and State.speedToggled then
+                State.speedToggled = false
+                if stackBtnRefs.carrySpeed then 
+                    stackBtnRefs.carrySpeed.setOn(false) 
+                end
+                -- Store carry speed before switching to lagger
+                State._prevCarry = State.carrySpeed
+                State._prevSpeed = false
             end
-            State.autoLeftEnabled = ns
-            if ns and aimbotActive then toggleAimbot() end
-            if ns then startAutoLeft() else stopAutoLeft() end
-        elseif def.key == "autoRight" then
-            -- Ensure mutual exclusivity - turn off auto left if turning on auto right
+            
+            State.laggerEnabled = ns
+            setOn(State.laggerEnabled)
+            
             if ns then
-                ensureMutualExclusive("autoRight")
+                -- Switch to lagger speed
+                if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
+            else
+                -- Restore carry speed when turning off lagger
+                State.carrySpeed = State._prevCarry or 30
+                State.speedToggled = State._prevSpeed or false
+                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
+                if stackBtnRefs.carrySpeed then 
+                    stackBtnRefs.carrySpeed.setOn(State.speedToggled) 
+                end
             end
-            State.autoRightEnabled = ns
-            if ns and aimbotActive then toggleAimbot() end
-            if ns then startAutoRight() else stopAutoRight() end
-        elseif def.key == "aimbot" then
+            return
+        end
+        
+        -- ============================================================
+        -- DROP BUTTON
+        -- ============================================================
+        if def.key == "drop" then
+            runDropBrainrot()
+            return
+        end
+        
+        -- ============================================================
+        -- AIMBOT BUTTON
+        -- ============================================================
+        if def.key == "aimbot" then
             -- Turn off both auto paths when turning aimbot ON
             if not aimbotActive then
                 if State.autoLeftEnabled then
@@ -1695,26 +1753,51 @@ for i, def in ipairs(stackDefs) do
                 end
             end
             toggleAimbot()
-        elseif def.key == "lagger" then
-            -- Ensure mutual exclusivity - turn off carry speed if turning on lagger
-            if ns then
-                ensureMutualExclusive("lagger")
+            return
+        end
+        
+        -- ============================================================
+        -- AUTO LEFT BUTTON
+        -- ============================================================
+        if def.key == "autoLeft" then
+            local ns = not btnState
+            -- Ensure mutual exclusivity - turn off auto right if turning on auto left
+            if ns and State.autoRightEnabled then
+                State.autoRightEnabled = false
+                if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
+                stopAutoRight()
             end
-            State.laggerEnabled = ns
-            if ns then
-                State._prevCarry = State.carrySpeed
-                State._prevSpeed = State.speedToggled
-                State.speedToggled = false
-                if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
-                if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
-            else
-                State.carrySpeed = State._prevCarry or 30
-                State.speedToggled = State._prevSpeed or false
-                if carryBox then carryBox.Text = tostring(State.carrySpeed) end
-                if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(State.speedToggled) end
+            State.autoLeftEnabled = ns
+            setOn(State.autoLeftEnabled)
+            if ns and aimbotActive then toggleAimbot() end
+            if ns then 
+                startAutoLeft() 
+            else 
+                stopAutoLeft() 
             end
-        elseif def.key == "drop" then
-            runDropBrainrot()
+            return
+        end
+        
+        -- ============================================================
+        -- AUTO RIGHT BUTTON
+        -- ============================================================
+        if def.key == "autoRight" then
+            local ns = not btnState
+            -- Ensure mutual exclusivity - turn off auto left if turning on auto right
+            if ns and State.autoLeftEnabled then
+                State.autoLeftEnabled = false
+                if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
+                stopAutoLeft()
+            end
+            State.autoRightEnabled = ns
+            setOn(State.autoRightEnabled)
+            if ns and aimbotActive then toggleAimbot() end
+            if ns then 
+                startAutoRight() 
+            else 
+                stopAutoRight() 
+            end
+            return
         end
     end
     
