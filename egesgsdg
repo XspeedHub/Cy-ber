@@ -1,72 +1,55 @@
 
 repeat task.wait() until game:IsLoaded()
 
--- ============================================================
--- INTRO - NYXORA HUB
--- ============================================================
+-- ═══════════════════════════════════════════════════════════
+--  NYXORA HUB  ─  INTRO SEQUENCE (toggleable)
+--  Blur on world + blinking NYXORA tag + lock-in song, then clears.
+-- ═══════════════════════════════════════════════════════════
+local _showIntro = true  -- default ON
 do
+    local function tryRead(fname)
+        local ok, exists = pcall(isfile, fname)
+        if not (ok and exists) then return end
+        local ok2, cfg = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(readfile(fname))
+        end)
+        if ok2 and cfg and cfg.showIntro ~= nil then
+            _showIntro = cfg.showIntro
+        end
+    end
+    tryRead("NyxoraHub_Config.json")
+end
+
+if _showIntro then do
+    local Players      = game:GetService("Players")
     local TweenService = game:GetService("TweenService")
     local CoreGui      = game:GetService("CoreGui")
-    local SoundService = game:GetService("SoundService")
-    local Lighting     = game:GetService("Lighting")
-    local Players      = game:GetService("Players")
     local LP           = Players.LocalPlayer
-    if not LP then
-        repeat task.wait(0.1) until Players.LocalPlayer
-        LP = Players.LocalPlayer
-    end
-    local pgui = LP:WaitForChild("PlayerGui", 10)
 
-    -- Cleanup old intros
-    for _, n in ipairs({"NoxyIntro", "NyxoraIntro", "AdaptHoneypotGui"}) do
-        pcall(function() local o = CoreGui:FindFirstChild(n); if o then o:Destroy() end end)
-        pcall(function() if pgui then local o = pgui:FindFirstChild(n); if o then o:Destroy() end end end)
-    end
+    local SONG_ID        = "rbxassetid://126107591945718"
+    local SONG_VOL       = 0.7
+    local INTRO_DURATION = 2
+    local BLINK_INTERVAL = 0.15
 
-    -- Configuration
-    local INTRO_DURATION = 0.6
-    local SONG_VOL       = 0.100
-    local LIGHT_BLUE     = Color3.fromRGB(100, 200, 255)
-    local LIGHT_BLUE_DARK= Color3.fromRGB(0, 80, 180)
-    local LIGHT_BLUE_LIGHT= Color3.fromRGB(180, 230, 255)
-    local OBSIDIAN       = Color3.fromRGB(8, 8, 12)
-
-    -- Blur effect
     local blur = Instance.new("BlurEffect")
     blur.Size   = 0
-    blur.Parent = Lighting
+    blur.Parent = game:GetService("Lighting")
 
-    -- Intro GUI
     local introGui = Instance.new("ScreenGui")
-    introGui.Name           = "NyxoraIntro"
-    introGui.ResetOnSpawn   = false
-    introGui.IgnoreGuiInset = true
-    introGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    introGui.DisplayOrder   = 999
-    pcall(function() introGui.Parent = CoreGui end)
-    if not introGui.Parent then introGui.Parent = pgui end
+    introGui.Name            = "NyxoraIntro"
+    introGui.ResetOnSpawn    = false
+    introGui.IgnoreGuiInset  = true
+    introGui.ZIndexBehavior  = Enum.ZIndexBehavior.Global
+    introGui.Parent          = CoreGui
 
-    -- Sound
-    local snd = Instance.new("Sound")
-    snd.SoundId            = "rbxassetid://136466267783019"
-    snd.Volume             = 10
-    snd.Looped             = false
-    snd.RollOffMode        = Enum.RollOffMode.InverseTapered
-    snd.RollOffMinDistance = 10000
-    snd.RollOffMaxDistance = 10000
-    snd.TimePosition       = 5
-    snd.Parent             = SoundService
-    pcall(function() snd:Play() end)
-
-    -- Main "NYXORA" text
+    -- Main "NYXORA" text with gradient
     local tag = Instance.new("TextLabel", introGui)
-    tag.Size                   = UDim2.new(0, 700, 0, 120)
-    tag.Position               = UDim2.new(0.5, 0, -0.3, -20)
-    tag.AnchorPoint            = Vector2.new(0.5, 0.5)
+    tag.Size                   = UDim2.new(0, 600, 0, 120)
+    tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
     tag.BackgroundTransparency = 1
     tag.Text                   = "NYXORA"
     tag.Font                   = Enum.Font.GothamBlack
-    tag.TextSize               = 100
+    tag.TextSize               = 110
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.TextStrokeColor3       = Color3.fromRGB(0, 40, 80)
     tag.TextStrokeTransparency = 0.3
@@ -74,67 +57,26 @@ do
     tag.TextTransparency       = 0
     tag.ZIndex                 = 110
 
-    -- Gradient for "NYXORA"
+    -- Gradient for NYXORA text
     local tagGrad = Instance.new("UIGradient", tag)
     tagGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0,    LIGHT_BLUE_DARK),
-        ColorSequenceKeypoint.new(0.35, LIGHT_BLUE),
-        ColorSequenceKeypoint.new(0.5,  LIGHT_BLUE_LIGHT),
-        ColorSequenceKeypoint.new(0.65, LIGHT_BLUE),
-        ColorSequenceKeypoint.new(1,    LIGHT_BLUE_DARK),
+        ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 80, 180)),
+        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.65, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 80, 180)),
     })
     tagGrad.Rotation = 0
 
-    -- Left diamond icon
-    local diaL = Instance.new("TextLabel", introGui)
-    diaL.Size                   = UDim2.new(0, 30, 0, 30)
-    diaL.Position               = UDim2.new(0.5, -240, -0.3, 58)
-    diaL.AnchorPoint            = Vector2.new(0.5, 0.5)
-    diaL.BackgroundTransparency = 1
-    diaL.Text                   = "◆"
-    diaL.TextSize               = 20
-    diaL.TextColor3             = LIGHT_BLUE
-    diaL.Font                   = Enum.Font.GothamBold
-    diaL.ZIndex                 = 112
-
-    -- Decorative line
-    local line = Instance.new("Frame", introGui)
-    line.Size                   = UDim2.new(0, 380, 0, 2)
-    line.Position               = UDim2.new(0.5, 0, -0.3, 58)
-    line.AnchorPoint            = Vector2.new(0.5, 0.5)
-    line.BackgroundColor3       = LIGHT_BLUE
-    line.BackgroundTransparency = 0
-    line.BorderSizePixel        = 0
-    line.ZIndex                 = 110
-    local lineGrad = Instance.new("UIGradient", line)
-    lineGrad.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0,   0.4),
-        NumberSequenceKeypoint.new(0.5, 0),
-        NumberSequenceKeypoint.new(1,   0.4),
-    })
-
-    -- Right diamond icon
-    local diaR = Instance.new("TextLabel", introGui)
-    diaR.Size                   = UDim2.new(0, 30, 0, 30)
-    diaR.Position               = UDim2.new(0.5, 240, -0.3, 58)
-    diaR.AnchorPoint            = Vector2.new(0.5, 0.5)
-    diaR.BackgroundTransparency = 1
-    diaR.Text                   = "◆"
-    diaR.TextSize               = 20
-    diaR.TextColor3             = LIGHT_BLUE
-    diaR.Font                   = Enum.Font.GothamBold
-    diaR.ZIndex                 = 112
-
-    -- "H U B" subtitle
+    -- Subtitle
     local sub = Instance.new("TextLabel", introGui)
-    sub.Size                   = UDim2.new(0, 400, 0, 22)
-    sub.Position               = UDim2.new(0.5, 0, -0.3, 82)
-    sub.AnchorPoint            = Vector2.new(0.5, 0.5)
+    sub.Size                   = UDim2.new(0, 400, 0, 30)
+    sub.Position               = UDim2.new(0.5, -200, 0.5, 60)
     sub.BackgroundTransparency = 1
     sub.Text                   = "H  U  B"
     sub.Font                   = Enum.Font.GothamBold
-    sub.TextSize               = 16
-    sub.TextColor3             = LIGHT_BLUE_LIGHT
+    sub.TextSize               = 20
+    sub.TextColor3             = Color3.fromRGB(100, 200, 255)
     sub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     sub.TextStrokeTransparency = 0.5
     sub.TextXAlignment         = Enum.TextXAlignment.Center
@@ -144,67 +86,66 @@ do
     -- Credit text
     local madeBy = Instance.new("TextLabel", introGui)
     madeBy.Size                   = UDim2.new(0, 400, 0, 16)
-    madeBy.Position               = UDim2.new(0.5, 0, -0.3, 112)
-    madeBy.AnchorPoint            = Vector2.new(0.5, 0.5)
+    madeBy.Position               = UDim2.new(0.5, -200, 0.5, 100)
     madeBy.BackgroundTransparency = 1
-    madeBy.Text                   = "·Nyxora"
+    madeBy.Text                   = "Nyxora"
     madeBy.Font                   = Enum.Font.GothamMedium
     madeBy.TextSize               = 11
-    madeBy.TextColor3             = LIGHT_BLUE
+    madeBy.TextColor3             = Color3.fromRGB(100, 200, 255)
     madeBy.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     madeBy.TextStrokeTransparency = 0.6
     madeBy.TextXAlignment         = Enum.TextXAlignment.Center
     madeBy.TextTransparency       = 0
     madeBy.ZIndex                 = 110
 
-    -- Start animations - blur and sound fade in
-    TweenService:Create(blur, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = 12}):Play()
-    TweenService:Create(snd,  TweenInfo.new(0.5), {Volume = SONG_VOL}):Play()
+    -- Sound
+    local snd = Instance.new("Sound")
+    snd.SoundId            = SONG_ID
+    snd.Volume             = SONG_VOL
+    snd.Looped             = false
+    snd.RollOffMode        = Enum.RollOffMode.InverseTapered
+    snd.RollOffMinDistance = 10000
+    snd.RollOffMaxDistance = 10000
+    snd.TimePosition       = 34
+    snd.Parent             = game:GetService("SoundService")
+    if not snd.IsLoaded then
+        local loaded = false
+        task.spawn(function() snd.Loaded:Wait(); loaded = true end)
+        local t = 0
+        while not loaded and t < 0.5 do task.wait(0.05); t = t + 0.05 end
+    end
+    pcall(function() snd:Play() end)
 
-    -- Slide all elements from top to center
-    local slideInfo = TweenInfo.new(0.75, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-    TweenService:Create(tag,    slideInfo, {Position = UDim2.new(0.5, 0, 0.5, -20)}):Play()
-    TweenService:Create(line,   slideInfo, {Position = UDim2.new(0.5, 0, 0.5, 58)}):Play()
-    TweenService:Create(diaL,   slideInfo, {Position = UDim2.new(0.5, -240, 0.5, 58)}):Play()
-    TweenService:Create(diaR,   slideInfo, {Position = UDim2.new(0.5, 240, 0.5, 58)}):Play()
-    TweenService:Create(sub,    slideInfo, {Position = UDim2.new(0.5, 0, 0.5, 82)}):Play()
-    TweenService:Create(madeBy, slideInfo, {Position = UDim2.new(0.5, 0, 0.5, 112)}):Play()
-
-    -- Gradient sweep animation
-    local sweepActive = true
+    -- Blinking animation
     task.spawn(function()
-        local off = -0.5
-        while sweepActive do
-            off = off + 0.008
-            if off > 1.5 then off = -0.5 end
-            tagGrad.Offset = Vector2.new(off, 0)
-            task.wait()
+        local blink = 0
+        while task.wait(BLINK_INTERVAL) do
+            blink = blink + 1
+            if blink % 2 == 0 then
+                tag.TextTransparency = 0
+            else
+                tag.TextTransparency = 0.3
+            end
         end
     end)
 
-    -- Wait, then fade out
-    task.wait(INTRO_DURATION - 0.5)
+    -- Wait for intro duration
+    task.wait(INTRO_DURATION)
 
-    -- Stop sweep animation
-    sweepActive = false
-
-    -- Fade out all elements
-    local exitInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-    TweenService:Create(tag,    exitInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(sub,    exitInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(madeBy, exitInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(line,   exitInfo, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(diaL,   exitInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(diaR,   exitInfo, {TextTransparency = 1}):Play()
+    -- Fade out
+    local fadeInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    TweenService:Create(tag,    fadeInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(sub,    fadeInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(madeBy, fadeInfo, {TextTransparency = 1}):Play()
     TweenService:Create(snd,    TweenInfo.new(0.6), {Volume = 0}):Play()
-    TweenService:Create(blur,   exitInfo, {Size = 0}):Play()
+    TweenService:Create(blur,   fadeInfo, {Size = 0}):Play()
 
-    -- Cleanup
-    task.wait(0.65)
+    task.wait(0.7)
+
     pcall(function() snd:Stop(); snd:Destroy() end)
     pcall(function() blur:Destroy() end)
     pcall(function() introGui:Destroy() end)
-end
+end end
 
 -- ============================================================
 -- NYXORA HUB 
@@ -2040,128 +1981,136 @@ stopAntiRagdoll = function()
 end
 
 -- ============================================================
--- FPS BOOST
+-- ANTI LAG (Clean & Effective)
 -- ============================================================
-local animRemoveConnections = {}
+local antiLagConn = nil
+local antiLagConnections = {}
 
-local function removeNonLocalAnimations()
-    for _, conn in ipairs(animRemoveConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    animRemoveConnections = {}
-    local function killAnimator(animator)
-        local model = animator:FindFirstAncestorOfClass("Model")
-        if model and model == LP.Character then return end
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            pcall(function() track:Stop(0) end)
-        end
-        local conn = animator.AnimationPlayed:Connect(function(track)
-            pcall(function() track:Stop(0) end)
-        end)
-        table.insert(animRemoveConnections, conn)
-    end
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Animator") then
-            pcall(killAnimator, obj)
-        end
-    end
-    local descConn = workspace.DescendantAdded:Connect(function(obj)
-        if State.fpsBoostEnabled and obj:IsA("Animator") then
-            pcall(killAnimator, obj)
+local function applyAntiLag(instance)
+    pcall(function()
+        -- Disable heavy visual effects
+        if instance:IsA("ParticleEmitter") then
+            instance.Enabled = false
+        elseif instance:IsA("Decal") or instance:IsA("Texture") then
+            instance.Transparency = 1
+        elseif instance:IsA("BasePart") then
+            instance.CastShadow = false
+            instance.Reflectance = 0
+            -- Only change material if it's not already optimized
+            if instance.Material ~= Enum.Material.Plastic then
+                instance.Material = Enum.Material.Plastic
+            end
+        elseif instance:IsA("MeshPart") then
+            instance.CastShadow = false
+            instance.RenderFidelity = Enum.RenderFidelity.Performance
+        elseif instance:IsA("Model") then
+            instance.LevelOfDetail = Enum.ModelLevelOfDetail.Disabled
+        elseif instance:IsA("Fire") or instance:IsA("Smoke") or instance:IsA("Sparkles") 
+            or instance:IsA("Trail") or instance:IsA("Beam") then
+            instance.Enabled = false
+        elseif instance:IsA("SpotLight") or instance:IsA("PointLight") or instance:IsA("SurfaceLight") then
+            instance.Enabled = false
+        elseif instance:IsA("Accessory") then
+            instance:Destroy()
         end
     end)
-    table.insert(animRemoveConnections, descConn)
 end
 
-local function stopAnimationRemoval()
-    for _, conn in ipairs(animRemoveConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    animRemoveConnections = {}
-end
-
-applyFPSBoost = function()
-    pcall(function() setfpscap(999999999) end)
-    removeNonLocalAnimations()
-    local function processObj(v)
-        pcall(function()
-            if v:IsA("Model") then
-                v.LevelOfDetail = Enum.ModelLevelOfDetail.Disabled
-                v.ModelStreamingMode = Enum.ModelStreamingMode.Nonatomic
-            elseif v:IsA("MeshPart") then
-                v.CastShadow = false; v.DoubleSided = false
-                v.RenderFidelity = Enum.RenderFidelity.Performance
-            elseif v:IsA("BasePart") then
-                v.CastShadow = false; v.Material = Enum.Material.Plastic; v.Reflectance = 0
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v.Transparency = 1
-            elseif v:IsA("SpecialMesh") then
-                v.TextureId = ""
-            elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") or v:IsA("Sparkles")
-                or v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") then
-                v.Enabled = false
-            elseif v:IsA("SurfaceAppearance") or v:IsA("MaterialVariant") then
-                v:Destroy()
-            elseif v:IsA("Attachment") then
-                v.Visible = false
-            end
-        end)
-    end
-    for _, v in pairs(workspace:GetDescendants()) do processObj(v) end
+local function optimizeLighting()
     pcall(function()
         local Lighting = game:GetService("Lighting")
-        for _, v in pairs(Lighting:GetDescendants()) do
-            pcall(function()
-                if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("BloomEffect") or v:IsA("BlurEffect")
-                or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("Clouds")
-                or v:IsA("PostEffect") or v:IsA("ColorCorrectionEffect") then
-                    v:Destroy()
-                end
-            end)
-        end
-        pcall(function() sethiddenproperty(Lighting, "Technology", Enum.Technology.Legacy) end)
-        Lighting.GlobalShadows = false; Lighting.FogEnd = 9e9; Lighting.Brightness = 0
-        local terrain = workspace:FindFirstChildOfClass("Terrain")
-        if terrain then
-            pcall(function() sethiddenproperty(terrain, "Decoration", false) end)
-            terrain.WaterReflectance = 0; terrain.WaterTransparency = 0.7
-            terrain.WaterWaveSize = 0; terrain.WaterWaveSpeed = 0
-        end
-    end)
-    local descendantConn = workspace.DescendantAdded:Connect(function(v)
-        if State.fpsBoostEnabled then
-            task.spawn(processObj, v)
-            if v:IsA("Animator") then
-                pcall(function()
-                    local model = v:FindFirstAncestorOfClass("Model")
-                    if model and model ~= LP.Character then
-                        for _, track in ipairs(v:GetPlayingAnimationTracks()) do
-                            pcall(function() track:Stop(0) end)
-                        end
-                        local animConn = v.AnimationPlayed:Connect(function(track)
-                            pcall(function() track:Stop(0) end)
-                        end)
-                        table.insert(animRemoveConnections, animConn)
-                    end
-                end)
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        
+        -- Disable effects
+        for _, child in pairs(Lighting:GetDescendants()) do
+            if child:IsA("BloomEffect") or child:IsA("BlurEffect") or child:IsA("SunRaysEffect") 
+            or child:IsA("DepthOfFieldEffect") or child:IsA("ColorCorrectionEffect") then
+                child.Enabled = false
             end
         end
+        
+        -- Optimize terrain
+        local terrain = workspace:FindFirstChildOfClass("Terrain")
+        if terrain then
+            terrain.WaterReflectance = 0
+            terrain.WaterWaveSize = 0
+            terrain.WaterWaveSpeed = 0
+        end
     end)
-    table.insert(animRemoveConnections, descendantConn)
 end
 
+local function enableAntiLag()
+    -- Set FPS cap
+    pcall(function() setfpscap(999999999) end)
+    
+    -- Clean up old connections
+    if antiLagConn then 
+        antiLagConn:Disconnect() 
+        antiLagConn = nil 
+    end
+    
+    for _, conn in ipairs(antiLagConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    antiLagConnections = {}
+    
+    -- Optimize lighting
+    optimizeLighting()
+    
+    -- Process existing objects
+    for _, v in pairs(workspace:GetDescendants()) do
+        applyAntiLag(v)
+    end
+    
+    -- Watch for new objects
+    antiLagConn = workspace.DescendantAdded:Connect(function(desc)
+        if State.antiLagEnabled then
+            task.spawn(applyAntiLag, desc)
+        end
+    end)
+    table.insert(antiLagConnections, antiLagConn)
+end
+
+local function disableAntiLag()
+    pcall(function() setfpscap(60) end)
+    
+    if antiLagConn then 
+        antiLagConn:Disconnect() 
+        antiLagConn = nil 
+    end
+    
+    for _, conn in ipairs(antiLagConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    antiLagConnections = {}
+end
+
+-- Replace FPS Boost with Anti Lag
 local originalSetFps = setFps
 setFps = function(on)
     State.fpsBoostEnabled = on
+    State.antiLagEnabled = on
     if on then
-        pcall(applyFPSBoost)
+        pcall(enableAntiLag)
     else
-        stopAnimationRemoval()
+        pcall(disableAntiLag)
     end
     if originalSetFps then pcall(originalSetFps, on) end
     pcall(saveConfig)
 end
 
+applyFPSBoost = function()
+    pcall(enableAntiLag)
+end
+
+-- Auto-enable if it was on
+task.spawn(function()
+    if State.fpsBoostEnabled then
+        task.wait(1)
+        pcall(enableAntiLag)
+    end
+end)
 -- ============================================================
 -- STEAL FUNCTIONS
 -- ============================================================
