@@ -48,7 +48,7 @@ if _showIntro then do
     tag.BackgroundTransparency = 1
     tag.Text                   = "NYXORA"
     tag.Font                   = Enum.Font.GothamBlack
-    tag.TextSize               = 110
+    tag.TextSize               = 90
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.TextStrokeColor3       = Color3.fromRGB(0, 40, 80)
     tag.TextStrokeTransparency = 0.3
@@ -74,7 +74,7 @@ if _showIntro then do
     sub.BackgroundTransparency = 1
     sub.Text                   = "H  U  B"
     sub.Font                   = Enum.Font.GothamBold
-    sub.TextSize               = 20
+    sub.TextSize               = 30
     sub.TextColor3             = Color3.fromRGB(100, 200, 255)
     sub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     sub.TextStrokeTransparency = 0.5
@@ -89,7 +89,7 @@ if _showIntro then do
     madeBy.BackgroundTransparency = 1
     madeBy.Text                   = "Nyxora"
     madeBy.Font                   = Enum.Font.GothamMedium
-    madeBy.TextSize               = 11
+    madeBy.TextSize               = 15
     madeBy.TextColor3             = Color3.fromRGB(100, 200, 255)
     madeBy.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     madeBy.TextStrokeTransparency = 0.6
