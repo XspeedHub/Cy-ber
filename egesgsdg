@@ -1,3 +1,5 @@
+repeat task.wait() until game:IsLoaded()
+
 -- ═══════════════════════════════════════════════════════════
 --  NYXORA HUB  ─  INTRO SEQUENCE (toggleable)
 --  Blur on world + blinking NYXORA tag + lock-in song, then clears.
@@ -1546,7 +1548,7 @@ startBatAimbot = startAimbot
 stopBatAimbot  = stopAimbot
 
 -- ============================================================
--- VBTN (CLOSE/OPEN Button - LOCKED POSITION FIX)
+-- VBTN
 -- ============================================================
 local _guiAnimating = false
 local function showGui()
@@ -1580,60 +1582,25 @@ vBtnLbl.TextSize = 13; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
 vBtnLbl.TextStrokeColor3 = THEME.DARK_BLUE
 vBtnLbl.ZIndex = 21
-
--- FIXED: CLOSE/OPEN Button drag logic with State.uiLocked check
-local vDragging, vDragInput, vDragStart, vStartPos = false, nil, nil, nil
-local vMoved = false
-local vClickTime = 0
-
+local vDragging,vDragInput,vDragStart,vStartPos=false,nil,nil,nil; local vMoved=false
 vBtnFrame.InputBegan:Connect(function(inp)
-    if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
-    vDragging = true
-    vMoved = false
-    vDragStart = inp.Position
-    vStartPos = vBtnFrame.Position
-    vClickTime = tick()
-    
+    if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
+    vDragging=true; vMoved=false; vDragStart=inp.Position; vStartPos=vBtnFrame.Position
     inp.Changed:Connect(function()
-        if inp.UserInputState == Enum.UserInputState.End then
-            local now = tick()
-            -- Only toggle GUI if NOT dragging AND UI is NOT locked
-            if not vMoved and not State.uiLocked then
-                State.guiVisible = not State.guiVisible
-                if State.guiVisible then 
-                    showGui() 
-                    vBtnLbl.Text = "CLOSE" 
-                else 
-                    hideGui() 
-                    vBtnLbl.Text = "OPEN" 
-                end
-            end
-            vDragging = false
-            vMoved = false
+        if inp.UserInputState==Enum.UserInputState.End then
+            if not vMoved then State.guiVisible=not State.guiVisible; if State.guiVisible then showGui(); vBtnLbl.Text="CLOSE" else hideGui(); vBtnLbl.Text="OPEN" end end
+            vDragging=false; vMoved=false
         end
     end)
 end)
-
 vBtnFrame.InputChanged:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then 
-        vDragInput = inp 
-    end
+    if inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch then vDragInput=inp end
 end)
-
 UIS.InputChanged:Connect(function(inp)
-    if inp ~= vDragInput or not vDragging then return end
-    local dx = inp.Position.X - vDragStart.X
-    local dy = inp.Position.Y - vDragStart.Y
-    if math.abs(dx) > 4 or math.abs(dy) > 4 then 
-        vMoved = true 
-    end
-    -- Only allow dragging if UI is NOT locked
-    if vMoved and not State.uiLocked then
-        vBtnFrame.Position = UDim2.new(
-            vStartPos.X.Scale, vStartPos.X.Offset + dx,
-            vStartPos.Y.Scale, vStartPos.Y.Offset + dy
-        )
-    end
+    if inp~=vDragInput or not vDragging then return end
+    local dx=inp.Position.X-vDragStart.X; local dy=inp.Position.Y-vDragStart.Y
+    if math.abs(dx)>4 or math.abs(dy)>4 then vMoved=true end
+    if vMoved then vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy) end
 end)
 
 -- stealRadBox sync loop
