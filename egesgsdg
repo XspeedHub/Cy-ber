@@ -333,6 +333,7 @@ local State = {
     unwalkEnabled=false, stackButtonsHidden=false,
     _prevCarry=30, _prevSpeed=false,
     autoTpDownEnabled=false, autoTpDownY=20,
+    guiScale=1.0,  -- NEW: GUI scale state
 }
 
 local Keys = {
@@ -342,7 +343,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=63; local BTN_H=50; local BTN_GAP=7; local COLS=2
+local BTN_W=69; local BTN_H=47; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
@@ -398,6 +399,7 @@ local radTB
 local unwalkAnimateRef = nil
 local optimizerDescConn = nil
 local setAutoTpDown
+local uiScaleObj  -- Will be used for GUI scaling
 
 -- ============================================================
 -- THEME COLORS FOR GUI
@@ -477,7 +479,8 @@ gui.Name="NyxoraHub"; gui.ResetOnSpawn=false; gui.DisplayOrder=10
 gui.IgnoreGuiInset=true; gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 gui.Parent=LP:WaitForChild("PlayerGui")
 
-local uiScaleObj=Instance.new("UIScale",gui); uiScaleObj.Scale=1.0
+uiScaleObj = Instance.new("UIScale", gui)
+uiScaleObj.Scale = State.guiScale or 1.0
 
 local function mkCorner(p,r) local c=Instance.new("UICorner",p); c.CornerRadius=UDim.new(0,r or 6); return c end
 local function mkStroke(p,col,th)
@@ -564,6 +567,17 @@ local function makeStackDraggable(frame,onTap)
             frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+dx,startPos.Y.Scale,startPos.Y.Offset+dy)
         end
     end)
+end
+
+-- ============================================================
+-- GUI SCALE ADJUSTMENT FUNCTION (NEW)
+-- ============================================================
+local function setGuiScale(scale)
+    State.guiScale = math.clamp(scale, 0.5, 1.5)
+    if uiScaleObj then
+        uiScaleObj.Scale = State.guiScale
+    end
+    pcall(saveConfig)
 end
 
 -- ============================================================
@@ -1118,6 +1132,16 @@ end)
 
 makeGap(12)
 
+-- NEW: GUI Scale Adjustment
+makeSectionHeader("GUI Settings")
+makeGap(2)
+makeInputRow("GUI Scale (0.5-1.5)", State.guiScale or 1.0, function(n)
+    if n >= 0.5 and n <= 1.5 then
+        setGuiScale(n)
+    end
+end)
+makeGap(12)
+
 makeSectionHeader("Aimbot")
 makeGap(2)
 setBatCounter = makeToggleRow("Bat Counter", false, function(on)
@@ -1547,19 +1571,20 @@ local function hideGui()
 end
 
 local vBtnFrame = Instance.new("Frame", gui)
-vBtnFrame.Name = "NyxoraHubVBtn"; vBtnFrame.Size = UDim2.new(0,72,0,36)
-vBtnFrame.Position = UDim2.new(0,14,0.5,-18); vBtnFrame.BackgroundColor3 = C.accent
+vBtnFrame.Name = "NyxoraHubVBtn"; vBtnFrame.Size = UDim2.new(0,63,0,33)
+vBtnFrame.Position = UDim2.new(0,14,0.3,-18); vBtnFrame.BackgroundColor3 = C.accent
 vBtnFrame.BorderSizePixel = 0; vBtnFrame.Active = true; vBtnFrame.ZIndex = 20
 mkCorner(vBtnFrame, 8); mkYogaBorder(vBtnFrame, 1.2, 2.5, 140)
 local vBtnLbl = Instance.new("TextLabel", vBtnFrame)
 vBtnLbl.Size = UDim2.new(1,0,1,0); vBtnLbl.BackgroundTransparency = 1; vBtnLbl.Text = "CLOSE"
 vBtnLbl.TextColor3 = Color3.fromRGB(255,255,255); vBtnLbl.Font = Enum.Font.GothamBlack
-vBtnLbl.TextSize = 14; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
+vBtnLbl.TextSize = 13; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
 vBtnLbl.TextStrokeColor3 = THEME.DARK_BLUE
 vBtnLbl.ZIndex = 21
 local vDragging,vDragInput,vDragStart,vStartPos=false,nil,nil,nil; local vMoved=false
 vBtnFrame.InputBegan:Connect(function(inp)
+    if State.uiLocked then return end  -- Prevent dragging when locked
     if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
     vDragging=true; vMoved=false; vDragStart=inp.Position; vStartPos=vBtnFrame.Position
     inp.Changed:Connect(function()
@@ -1573,10 +1598,46 @@ vBtnFrame.InputChanged:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseMovement or inp.UserInputType==Enum.UserInputType.Touch then vDragInput=inp end
 end)
 UIS.InputChanged:Connect(function(inp)
+    if State.uiLocked then return end  -- Prevent dragging when locked
     if inp~=vDragInput or not vDragging then return end
     local dx=inp.Position.X-vDragStart.X; local dy=inp.Position.Y-vDragStart.Y
     if math.abs(dx)>4 or math.abs(dy)>4 then vMoved=true end
     if vMoved then vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy) end
+end)
+
+-- ============================================================
+-- VBTN LOCK VISUAL FEEDBACK (NEW)
+-- ============================================================
+local function updateVBtnLockState()
+    if State.uiLocked then
+        vBtnFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)  -- Darker when locked
+        vBtnLbl.TextColor3 = Color3.fromRGB(100, 100, 120)
+        vBtnFrame.BackgroundTransparency = 0.2
+    else
+        vBtnFrame.BackgroundColor3 = C.accent
+        vBtnLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        vBtnFrame.BackgroundTransparency = 0
+    end
+end
+
+-- Hook into lock state changes
+local function onLockStateChanged()
+    task.wait(0.1)
+    updateVBtnLockState()
+end
+
+-- Connect to lock button
+if lockTxt then
+    local parent = lockTxt.Parent
+    if parent then
+        parent.MouseButton1Click:Connect(onLockStateChanged)
+    end
+end
+
+-- Initial state update
+task.spawn(function()
+    task.wait(0.5)
+    updateVBtnLockState()
 end)
 
 -- stealRadBox sync loop
@@ -2251,6 +2312,7 @@ saveConfig = function()
     data.stackHidden=State.stackButtonsHidden; data.uiLocked=State.uiLocked
     data.autoTpDown=State.autoTpDownEnabled
     data.autoTpDownY=State.autoTpDownY
+    data.guiScale=State.guiScale or 1.0  -- Save GUI scale
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
     
     for _, def in ipairs(stackDefs) do
@@ -2322,6 +2384,10 @@ loadConfig = function()
         setAutoTpDown(cfg.autoTpDown)
     end
     if cfg.autoTpDownY then State.autoTpDownY = cfg.autoTpDownY end
+    if cfg.guiScale then 
+        State.guiScale = math.clamp(cfg.guiScale, 0.5, 1.5)
+        if uiScaleObj then uiScaleObj.Scale = State.guiScale end
+    end
     if cfg.stackHidden then
         State.stackButtonsHidden=true
         for _,wrapper in pairs(stackWrappers) do wrapper.Visible=false end
