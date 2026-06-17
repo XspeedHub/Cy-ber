@@ -2359,7 +2359,7 @@ loadConfig = function()
     if cfg.uiLocked then
         State.uiLocked=true
         if lockBtn then
-            lockBtn.Text="🔒  Lock Positions: ON"
+            lockBtn.Text="Lock Positions: ON"
             lockBtn.BackgroundColor3=THEME.DARK_BLUE
             lockBtn.TextColor3=THEME.LIGHT_BLUE
         end
