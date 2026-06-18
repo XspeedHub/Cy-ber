@@ -806,7 +806,7 @@ mainScale.Scale = 1
 
 local bgImg = Instance.new("ImageLabel", mainOuter)
 bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundTransparency = 1
-bgImg.Image = "rbxassetid://80432866109662"; bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.Image = "rbxassetid://110401909889285"; bgImg.ScaleType = Enum.ScaleType.Crop
 bgImg.ImageTransparency = 0; bgImg.ZIndex = 0; mkCorner(bgImg, 14)
 
 local bgOverlay = Instance.new("Frame", mainOuter)
