@@ -27,7 +27,7 @@ if _showIntro then do
 
     local SONG_ID        = "rbxassetid://126107591945718"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 2
+    local INTRO_DURATION = 1.7
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
