@@ -605,7 +605,7 @@ hudLogo.Position = UDim2.new(0, 8, 0.5, -11)
 hudLogo.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
 hudLogo.BackgroundTransparency = 0.5
 hudLogo.BorderSizePixel = 0
-hudLogo.Image = "rbxassetid://105132226968722"
+hudLogo.Image = "rbxassetid://130112165528319"
 hudLogo.ScaleType = Enum.ScaleType.Fit
 mkCorner(hudLogo, 6)
 mkYogaBorder(hudLogo, 1, 2, 120)
@@ -804,7 +804,7 @@ mainScale.Scale = 1
 
 local bgImg = Instance.new("ImageLabel", mainOuter)
 bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundTransparency = 1
-bgImg.Image = "rbxassetid://110401909889285"; bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.Image = "rbxassetid://70626867801414"; bgImg.ScaleType = Enum.ScaleType.Crop
 bgImg.ImageTransparency = 0; bgImg.ZIndex = 0; mkCorner(bgImg, 14)
 
 local bgOverlay = Instance.new("Frame", mainOuter)
@@ -838,7 +838,7 @@ logoBox.Size=UDim2.new(0,26,0,26); logoBox.Position=UDim2.new(0,8,0,6)
 logoBox.BackgroundColor3=THEME.OBSIDIAN_LIGHT
 logoBox.BackgroundTransparency=0.3
 logoBox.BorderSizePixel=0; logoBox.ZIndex=6
-logoBox.Image="rbxassetid://105132226968722"
+logoBox.Image="rbxassetid://130112165528319"
 logoBox.ScaleType=Enum.ScaleType.Fit
 mkCorner(logoBox,8)
 mkYogaBorder(logoBox, 1.2, 2.2, 130)
