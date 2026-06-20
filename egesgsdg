@@ -27,7 +27,7 @@ if _showIntro then do
 
     local SONG_ID        = "rbxassetid://126107591945718"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 1.7
+    local INTRO_DURATION = 1.5
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
@@ -41,7 +41,7 @@ if _showIntro then do
     introGui.ZIndexBehavior  = Enum.ZIndexBehavior.Global
     introGui.Parent          = CoreGui
 
-    -- Main "NYXORA" text with gradient
+    -- Main "NYXORA" text with gradient (BLACK & WHITE)
     local tag = Instance.new("TextLabel", introGui)
     tag.Size                   = UDim2.new(0, 600, 0, 120)
     tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
@@ -50,20 +50,20 @@ if _showIntro then do
     tag.Font                   = Enum.Font.GothamBlack
     tag.TextSize               = 90
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
-    tag.TextStrokeColor3       = Color3.fromRGB(0, 40, 80)
+    tag.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     tag.TextStrokeTransparency = 0.3
     tag.TextXAlignment         = Enum.TextXAlignment.Center
     tag.TextTransparency       = 0
     tag.ZIndex                 = 110
 
-    -- Gradient for NYXORA text
+    -- Gradient for NYXORA text (BLACK & WHITE ONLY)
     local tagGrad = Instance.new("UIGradient", tag)
     tagGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 80, 180)),
-        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(0.35, Color3.fromRGB(80, 80, 80)),
         ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.65, Color3.fromRGB(100, 200, 255)),
-        ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 80, 180)),
+        ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80, 80, 80)),
+        ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),
     })
     tagGrad.Rotation = 0
 
@@ -75,7 +75,7 @@ if _showIntro then do
     sub.Text                   = "H  U  B"
     sub.Font                   = Enum.Font.GothamBold
     sub.TextSize               = 30
-    sub.TextColor3             = Color3.fromRGB(100, 200, 255)
+    sub.TextColor3             = Color3.fromRGB(200, 200, 200)
     sub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     sub.TextStrokeTransparency = 0.5
     sub.TextXAlignment         = Enum.TextXAlignment.Center
@@ -90,7 +90,7 @@ if _showIntro then do
     madeBy.Text                   = "Nyxora"
     madeBy.Font                   = Enum.Font.GothamMedium
     madeBy.TextSize               = 15
-    madeBy.TextColor3             = Color3.fromRGB(100, 200, 255)
+    madeBy.TextColor3             = Color3.fromRGB(180, 180, 180)
     madeBy.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     madeBy.TextStrokeTransparency = 0.6
     madeBy.TextXAlignment         = Enum.TextXAlignment.Center
@@ -161,18 +161,18 @@ local CoreGui         = game:GetService("CoreGui")
 local LP              = Players.LocalPlayer
 
 -- ============================================================
--- THEME COLORS (Obsidian Black + Light Blue)
+-- THEME COLORS (BLACK & WHITE THEME)
 -- ============================================================
 local THEME = {
-    OBSIDIAN   = Color3.fromRGB(8, 8, 12),
-    OBSIDIAN_LIGHT = Color3.fromRGB(15, 15, 22),
-    LIGHT_BLUE = Color3.fromRGB(100, 200, 255),
-    DARK_BLUE  = Color3.fromRGB(0, 80, 180),
-    ACCENT     = Color3.fromRGB(0, 150, 255),
-    GLOW       = Color3.fromRGB(80, 180, 255),
-    BG_DARK    = Color3.fromRGB(5, 5, 8),
+    OBSIDIAN   = Color3.fromRGB(0, 0, 0),
+    OBSIDIAN_LIGHT = Color3.fromRGB(15, 15, 15),
+    LIGHT_BLUE = Color3.fromRGB(255, 255, 255),  -- Changed to white
+    DARK_BLUE  = Color3.fromRGB(200, 200, 200),     -- Changed to gray
+    ACCENT     = Color3.fromRGB(200, 200, 200),
+    GLOW       = Color3.fromRGB(180, 180, 180),
+    BG_DARK    = Color3.fromRGB(0, 0, 0),
     TEXT_WHITE = Color3.fromRGB(255, 255, 255),
-    TEXT_BLUE  = Color3.fromRGB(100, 200, 255),
+    TEXT_BLUE  = Color3.fromRGB(255, 200, 200),
 }
 
 local LOGO_ID = "rbxassetid://7428916459"
@@ -187,7 +187,6 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 -- MUTUAL EXCLUSIVITY FUNCTION
 -- ============================================================
 local function ensureMutualExclusive(activeKey)
-    -- Auto Left / Auto Right mutual exclusivity
     if activeKey == "autoLeft" and State.autoRightEnabled then
         State.autoRightEnabled = false
         if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
@@ -196,7 +195,6 @@ local function ensureMutualExclusive(activeKey)
         State.autoLeftEnabled = false
         if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
         stopAutoLeft()
-    -- Carry Speed / Lagger mutual exclusivity
     elseif activeKey == "carrySpeed" and State.laggerEnabled then
         State.laggerEnabled = false
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
@@ -209,7 +207,7 @@ local function ensureMutualExclusive(activeKey)
 end
 
 -- ============================================================
--- LIGHT BLUE ESP + SMALL NAME TAG
+-- ESP + NAME TAG (BLACK & WHITE)
 -- ============================================================
 
 local function addESP(player)
@@ -333,7 +331,7 @@ local State = {
     unwalkEnabled=false, stackButtonsHidden=false,
     _prevCarry=30, _prevSpeed=false,
     autoTpDownEnabled=false, autoTpDownY=20,
-    guiScale=1.0,  -- NEW: GUI scale state
+    guiScale=1.0,
 }
 
 local Keys = {
@@ -399,14 +397,14 @@ local radTB
 local unwalkAnimateRef = nil
 local optimizerDescConn = nil
 local setAutoTpDown
-local uiScaleObj  -- Will be used for GUI scaling
+local uiScaleObj
 
 -- ============================================================
--- THEME COLORS FOR GUI
+-- THEME COLORS FOR GUI (BLACK & WHITE)
 -- ============================================================
 local C = {
     winBg       = THEME.OBSIDIAN,
-    winBorder   = THEME.DARK_BLUE,
+    winBorder   = THEME.LIGHT_BLUE,
     winBorderPulse = THEME.LIGHT_BLUE,
     topBg       = THEME.OBSIDIAN,
     topTitle    = THEME.LIGHT_BLUE,
@@ -416,7 +414,7 @@ local C = {
     topDivider  = THEME.DARK_BLUE,
     tabBarBg    = THEME.OBSIDIAN,
     tabBarDiv   = THEME.DARK_BLUE,
-    tabIdle     = Color3.fromRGB(60, 60, 80),
+    tabIdle     = Color3.fromRGB(80, 80, 80),
     tabActive   = THEME.LIGHT_BLUE,
     tabActiveBg = THEME.OBSIDIAN_LIGHT,
     tabUnderline= THEME.LIGHT_BLUE,
@@ -424,42 +422,42 @@ local C = {
     sectionDiv  = THEME.DARK_BLUE,
     rowBg       = THEME.OBSIDIAN,
     rowBorder   = THEME.DARK_BLUE,
-    rowLabel    = Color3.fromRGB(200, 200, 220),
-    rowSub      = Color3.fromRGB(80, 80, 120),
+    rowLabel    = Color3.fromRGB(220, 220, 220),
+    rowSub      = Color3.fromRGB(120, 120, 120),
     rowValue    = THEME.LIGHT_BLUE,
     rowHov      = THEME.OBSIDIAN_LIGHT,
     inputBg     = THEME.OBSIDIAN,
     inputBorder = THEME.LIGHT_BLUE,
     inputFocus  = THEME.LIGHT_BLUE,
-    inputTxt    = Color3.fromRGB(200, 200, 220),
-    pillOff     = Color3.fromRGB(15, 15, 25),
+    inputTxt    = Color3.fromRGB(220, 220, 220),
+    pillOff     = Color3.fromRGB(15, 15, 15),
     pillOn      = THEME.DARK_BLUE,
-    dotOff      = Color3.fromRGB(40, 40, 60),
+    dotOff      = Color3.fromRGB(40, 40, 40),
     dotOn       = Color3.fromRGB(255, 255, 255),
     pillBorder  = THEME.LIGHT_BLUE,
     modeBtnBg   = THEME.OBSIDIAN,
     modeBtnBrd  = THEME.DARK_BLUE,
-    modeBtnTxt  = Color3.fromRGB(100, 150, 220),
+    modeBtnTxt  = Color3.fromRGB(150, 150, 150),
     modeBtnActBg= THEME.DARK_BLUE,
     modeBtnActTx= Color3.fromRGB(255, 255, 255),
     chipBg      = THEME.OBSIDIAN,
     chipBorder  = THEME.DARK_BLUE,
-    chipTxt     = Color3.fromRGB(100, 150, 220),
+    chipTxt     = Color3.fromRGB(150, 150, 150),
     btnBg       = THEME.OBSIDIAN,
     btnBorder   = THEME.DARK_BLUE,
     btnTxt      = THEME.LIGHT_BLUE,
     btnHov      = THEME.DARK_BLUE,
     stackBg     = THEME.OBSIDIAN,
     stackBrd    = THEME.LIGHT_BLUE,
-    stackTxt    = Color3.fromRGB(100, 200, 225),
-    stackActBg  = THEME.DARK_BLUE,
+    stackTxt    = Color3.fromRGB(255, 255, 255),
+    stackActBg  = THEME.LIGHT_BLUE,
     stackActBrd = THEME.TEXT_WHITE,
-    stackActTxt = Color3.fromRGB(8, 8, 12),
+    stackActTxt = Color3.fromRGB(0, 0, 0),
     stackDot    = THEME.DARK_BLUE,
     stackDotOn  = THEME.TEXT_WHITE,
     infoBg      = THEME.OBSIDIAN,
     infoBrd     = THEME.DARK_BLUE,
-    infoTxt     = Color3.fromRGB(80, 80, 120),
+    infoTxt     = Color3.fromRGB(120, 120, 120),
     infoVal     = THEME.LIGHT_BLUE,
     infoFill    = THEME.DARK_BLUE,
     accent      = THEME.LIGHT_BLUE,
@@ -570,7 +568,7 @@ local function makeStackDraggable(frame,onTap)
 end
 
 -- ============================================================
--- GUI SCALE ADJUSTMENT FUNCTION (NEW)
+-- GUI SCALE ADJUSTMENT FUNCTION
 -- ============================================================
 local function setGuiScale(scale)
     State.guiScale = math.clamp(scale, 0.5, 1.5)
@@ -581,7 +579,7 @@ local function setGuiScale(scale)
 end
 
 -- ============================================================
--- HUD BAR
+-- HUD BAR (BLACK & WHITE)
 -- ============================================================
 local hudGui = Instance.new("ScreenGui")
 hudGui.Name           = "NyxoraHubHUD"
@@ -736,7 +734,7 @@ stealPctLbl.TextXAlignment         = Enum.TextXAlignment.Center
 stealPctLbl.TextYAlignment         = Enum.TextYAlignment.Center
 stealPctLbl.ZIndex                 = 6
 
--- HUD drag (moves both together)
+-- HUD drag
 do
     local dDrag, dStart, dPos = false, nil, nil
     hudFrame.InputBegan:Connect(function(inp)
@@ -991,30 +989,30 @@ local function makeToggleRow(label, defaultOn, onToggle)
     mkYogaBorder(pillBg, 1.2, 2.4, 150)
     local offLbl = Instance.new("TextLabel", pillBg)
     offLbl.Size = UDim2.new(0.5,0,1,0); offLbl.BackgroundTransparency = 1; offLbl.Text = "OFF"
-    offLbl.TextColor3 = defaultOn and Color3.fromRGB(30,50,90) or Color3.fromRGB(80,100,160)
+    offLbl.TextColor3 = defaultOn and Color3.fromRGB(30,30,30) or Color3.fromRGB(100,100,100)
     offLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     offLbl.TextSize = 9; offLbl.TextXAlignment = Enum.TextXAlignment.Center; offLbl.ZIndex = 8
     local onLbl = Instance.new("TextLabel", pillBg)
     onLbl.Size = UDim2.new(0.5,0,1,0); onLbl.Position = UDim2.new(0.5,0,0,0)
     onLbl.BackgroundTransparency = 1; onLbl.Text = "ON"
-    onLbl.TextColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(30,50,90)
+    onLbl.TextColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(30,30,30)
     onLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     onLbl.TextSize = 9; onLbl.TextXAlignment = Enum.TextXAlignment.Center; onLbl.ZIndex = 8
     local dot = Instance.new("Frame", pillBg)
     dot.Size = UDim2.new(0.5,-3,1,-4)
     dot.Position = defaultOn and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2)
-    dot.BackgroundColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,40)
+    dot.BackgroundColor3 = defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,15)
     dot.BorderSizePixel = 0; dot.ZIndex = 7; mkCorner(dot, 5)
-    mkStroke(dot, defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(30,40,80), 1)
+    mkStroke(dot, defaultOn and THEME.LIGHT_BLUE or Color3.fromRGB(40,40,40), 1)
     local isOn = defaultOn or false
     local function setV(on)
         isOn = on
         TweenService:Create(pillBg,TweenInfo.new(0.2,Enum.EasingStyle.Quad),{BackgroundColor3=on and THEME.DARK_BLUE or THEME.OBSIDIAN}):Play()
-        TweenService:Create(dot,TweenInfo.new(0.2,Enum.EasingStyle.Back),{Position=on and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2),BackgroundColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,40)}):Play()
-        TweenService:Create(onLbl,TweenInfo.new(0.2),{TextColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(30,50,90)}):Play()
-        TweenService:Create(offLbl,TweenInfo.new(0.2),{TextColor3=on and Color3.fromRGB(30,50,90) or Color3.fromRGB(80,100,160)}):Play()
+        TweenService:Create(dot,TweenInfo.new(0.2,Enum.EasingStyle.Back),{Position=on and UDim2.new(0.5,1,0,2) or UDim2.new(0,2,0,2),BackgroundColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(15,15,15)}):Play()
+        TweenService:Create(onLbl,TweenInfo.new(0.2),{TextColor3=on and THEME.LIGHT_BLUE or Color3.fromRGB(30,30,30)}):Play()
+        TweenService:Create(offLbl,TweenInfo.new(0.2),{TextColor3=on and Color3.fromRGB(30,30,30) or Color3.fromRGB(100,100,100)}):Play()
         local dotStroke=dot:FindFirstChildOfClass("UIStroke")
-        if dotStroke then TweenService:Create(dotStroke,TweenInfo.new(0.2),{Color=on and THEME.LIGHT_BLUE or Color3.fromRGB(30,40,80)}):Play() end
+        if dotStroke then TweenService:Create(dotStroke,TweenInfo.new(0.2),{Color=on and THEME.LIGHT_BLUE or Color3.fromRGB(40,40,40)}):Play() end
     end
     local function toggle() isOn=not isOn; setV(isOn); if onToggle then pcall(onToggle,isOn) end end
     local clk = Instance.new("TextButton", row)
@@ -1132,7 +1130,6 @@ end)
 
 makeGap(12)
 
--- NEW: GUI Scale Adjustment
 makeSectionHeader("GUI Settings")
 makeGap(2)
 makeInputRow("GUI Scale (0.5-1.5)", State.guiScale or 1.0, function(n)
@@ -1210,24 +1207,21 @@ end)
 makeGap(8)
 
 -- ============================================================
--- KEYBINDS SECTION (Organized)
+-- KEYBINDS SECTION
 -- ============================================================
 makeSectionHeader("Keybinds")
 makeGap(2)
 
--- Combat Keybinds
 makeKeybindRow("Speed Toggle", Keys.speed, function(k) Keys.speed=k end, "speed")
 makeKeybindRow("Lagger Toggle", Keys.lagger, function(k) Keys.lagger=k end, "lagger")
 makeKeybindRow("Aimbot Toggle", Keys.aimbot, function(k) Keys.aimbot=k end, "aimbot")
 makeGap(2)
 
--- Movement Keybinds
 makeKeybindRow("Auto Left", Keys.autoLeft, function(k) Keys.autoLeft=k end, "autoLeft")
 makeKeybindRow("Auto Right", Keys.autoRight, function(k) Keys.autoRight=k end, "autoRight")
 makeKeybindRow("TP Down", Keys.tpDown, function(k) Keys.tpDown=k end, "tpDown")
 makeGap(2)
 
--- Utility Keybinds
 makeKeybindRow("Drop BR", Keys.drop, function(k) Keys.drop=k end, "drop")
 makeKeybindRow("Hide GUI", Keys.guiHide, function(k) Keys.guiHide=k end, "guiHide")
 
@@ -1410,7 +1404,7 @@ stopBatCounter=function()
 end
 
 -- ============================================================
--- BAT AIMBOT (NO AUTO-EQUIP)
+-- BAT AIMBOT
 -- ============================================================
 local aimbotActive = false
 local aimbotConnection = nil
@@ -1577,7 +1571,7 @@ vBtnFrame.BorderSizePixel = 0; vBtnFrame.Active = true; vBtnFrame.ZIndex = 20
 mkCorner(vBtnFrame, 8); mkYogaBorder(vBtnFrame, 1.2, 2.5, 140)
 local vBtnLbl = Instance.new("TextLabel", vBtnFrame)
 vBtnLbl.Size = UDim2.new(1,0,1,0); vBtnLbl.BackgroundTransparency = 1; vBtnLbl.Text = "CLOSE"
-vBtnLbl.TextColor3 = Color3.fromRGB(255,255,255); vBtnLbl.Font = Enum.Font.GothamBlack
+vBtnLbl.TextColor3 = Color3.fromRGB(8,8,12); vBtnLbl.Font = Enum.Font.GothamBlack
 vBtnLbl.TextSize = 13; vBtnLbl.TextXAlignment = Enum.TextXAlignment.Center
 vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTransparency = 0.4
 vBtnLbl.TextStrokeColor3 = THEME.DARK_BLUE
@@ -1615,7 +1609,7 @@ do
 end
 
 -- ============================================================
--- STACK BUTTONS (COMPLETELY FIXED - ALL BUTTONS WORKING)
+-- STACK BUTTONS
 -- ============================================================
 for i, def in ipairs(stackDefs) do
     local btnFrame = Instance.new("Frame", gui)
@@ -1629,10 +1623,8 @@ for i, def in ipairs(stackDefs) do
     btnFrame.ZIndex = 15
     mkCorner(btnFrame, 8)
     
-    -- Main border with yoga effect
     local bStroke = mkYogaBorder(btnFrame, 1.5, 3, 150)
     
-    -- Label text
     local nl = Instance.new("TextLabel", btnFrame)
     nl.Size = UDim2.new(1, -6, 1, 0)
     nl.Position = UDim2.new(0, 3, 0, 0)
@@ -1660,7 +1652,6 @@ for i, def in ipairs(stackDefs) do
     
     stackBtnRefs[def.key] = {setOn = setOn}
     
-    -- Light Blue hover effect
     btnFrame.MouseEnter:Connect(function()
         if not btnState then
             TweenService:Create(btnFrame, TweenInfo.new(0.1), {BackgroundColor3 = THEME.LIGHT_BLUE}):Play()
@@ -1674,73 +1665,50 @@ for i, def in ipairs(stackDefs) do
     end)
     
     local function onTap()
-        -- ============================================================
-        -- TP DOWN BUTTON
-        -- ============================================================
         if def.key == "tpDown" then 
             doTpDown() 
             return 
         end
         
-        -- ============================================================
-        -- CARRY SPEED BUTTON (FIXED)
-        -- ============================================================
         if def.key == "carrySpeed" then 
             local ns = not btnState
-            
-            -- If turning ON carry speed, turn OFF lagger
             if ns and State.laggerEnabled then
                 State.laggerEnabled = false
                 if stackBtnRefs.lagger then 
                     stackBtnRefs.lagger.setOn(false) 
                 end
-                -- Restore previous speed values
                 State.carrySpeed = State._prevCarry or 30
                 State.speedToggled = State._prevSpeed or false
                 if carryBox then carryBox.Text = tostring(State.carrySpeed) end
             end
-            
             State.speedToggled = ns
             setOn(State.speedToggled)
-            
             if ns then
-                -- Store current speed for restoration
                 State._prevCarry = State.carrySpeed
                 State._prevSpeed = true
                 if carryBox then carryBox.Text = tostring(State.carrySpeed) end
             else
-                -- Reset carry speed to normal when turning off
                 State.carrySpeed = State._prevCarry or 30
                 if carryBox then carryBox.Text = tostring(State.carrySpeed) end
             end
             return
         end
         
-        -- ============================================================
-        -- LAGGER BUTTON (FIXED)
-        -- ============================================================
         if def.key == "lagger" then
             local ns = not btnState
-            
-            -- If turning ON lagger, turn OFF carry speed
             if ns and State.speedToggled then
                 State.speedToggled = false
                 if stackBtnRefs.carrySpeed then 
                     stackBtnRefs.carrySpeed.setOn(false) 
                 end
-                -- Store carry speed before switching to lagger
                 State._prevCarry = State.carrySpeed
                 State._prevSpeed = false
             end
-            
             State.laggerEnabled = ns
             setOn(State.laggerEnabled)
-            
             if ns then
-                -- Switch to lagger speed
                 if carryBox then carryBox.Text = tostring(State.laggerSpeed) end
             else
-                -- Restore carry speed when turning off lagger
                 State.carrySpeed = State._prevCarry or 30
                 State.speedToggled = State._prevSpeed or false
                 if carryBox then carryBox.Text = tostring(State.carrySpeed) end
@@ -1751,19 +1719,12 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
-        -- ============================================================
-        -- DROP BUTTON
-        -- ============================================================
         if def.key == "drop" then
             runDropBrainrot()
             return
         end
         
-        -- ============================================================
-        -- AIMBOT BUTTON
-        -- ============================================================
         if def.key == "aimbot" then
-            -- Turn off both auto paths when turning aimbot ON
             if not aimbotActive then
                 if State.autoLeftEnabled then
                     State.autoLeftEnabled = false
@@ -1780,12 +1741,8 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
-        -- ============================================================
-        -- AUTO LEFT BUTTON
-        -- ============================================================
         if def.key == "autoLeft" then
             local ns = not btnState
-            -- Ensure mutual exclusivity - turn off auto right if turning on auto left
             if ns and State.autoRightEnabled then
                 State.autoRightEnabled = false
                 if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
@@ -1802,12 +1759,8 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
-        -- ============================================================
-        -- AUTO RIGHT BUTTON
-        -- ============================================================
         if def.key == "autoRight" then
             local ns = not btnState
-            -- Ensure mutual exclusivity - turn off auto left if turning on auto right
             if ns and State.autoLeftEnabled then
                 State.autoLeftEnabled = false
                 if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
@@ -1827,10 +1780,6 @@ for i, def in ipairs(stackDefs) do
     
     makeStackDraggable(btnFrame, onTap)
 end
-
--- ============================================================
--- HELPERS & CORE FUNCTIONS
--- ============================================================
 
 -- ============================================================
 -- TP DOWN
@@ -1946,7 +1895,7 @@ stopMedusaCounter=function()
 end
 
 -- ============================================================
--- AUTO LEFT / RIGHT (WITH MOVE PROXY)
+-- AUTO LEFT / RIGHT
 -- ============================================================
 local function faceSouth() pcall(function() local c=LP.Character; if not c then return end; local root=c:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(root.Position)*CFrame.Angles(0,0,0) end end) end
 local function faceNorth() pcall(function() local c=LP.Character; if not c then return end; local root=c:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(root.Position)*CFrame.Angles(0,math.rad(180),0) end end) end
@@ -2088,14 +2037,13 @@ stopAntiRagdoll = function()
 end
 
 -- ============================================================
--- ANTI LAG (Clean & Effective)
+-- ANTI LAG
 -- ============================================================
 local antiLagConn = nil
 local antiLagConnections = {}
 
 local function applyAntiLag(instance)
     pcall(function()
-        -- Disable heavy visual effects
         if instance:IsA("ParticleEmitter") then
             instance.Enabled = false
         elseif instance:IsA("Decal") or instance:IsA("Texture") then
@@ -2103,7 +2051,6 @@ local function applyAntiLag(instance)
         elseif instance:IsA("BasePart") then
             instance.CastShadow = false
             instance.Reflectance = 0
-            -- Only change material if it's not already optimized
             if instance.Material ~= Enum.Material.Plastic then
                 instance.Material = Enum.Material.Plastic
             end
@@ -2129,7 +2076,6 @@ local function optimizeLighting()
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 9e9
         
-        -- Disable effects
         for _, child in pairs(Lighting:GetDescendants()) do
             if child:IsA("BloomEffect") or child:IsA("BlurEffect") or child:IsA("SunRaysEffect") 
             or child:IsA("DepthOfFieldEffect") or child:IsA("ColorCorrectionEffect") then
@@ -2137,7 +2083,6 @@ local function optimizeLighting()
             end
         end
         
-        -- Optimize terrain
         local terrain = workspace:FindFirstChildOfClass("Terrain")
         if terrain then
             terrain.WaterReflectance = 0
@@ -2148,10 +2093,8 @@ local function optimizeLighting()
 end
 
 local function enableAntiLag()
-    -- Set FPS cap
     pcall(function() setfpscap(999999999) end)
     
-    -- Clean up old connections
     if antiLagConn then 
         antiLagConn:Disconnect() 
         antiLagConn = nil 
@@ -2162,15 +2105,12 @@ local function enableAntiLag()
     end
     antiLagConnections = {}
     
-    -- Optimize lighting
     optimizeLighting()
     
-    -- Process existing objects
     for _, v in pairs(workspace:GetDescendants()) do
         applyAntiLag(v)
     end
     
-    -- Watch for new objects
     antiLagConn = workspace.DescendantAdded:Connect(function(desc)
         if State.antiLagEnabled then
             task.spawn(applyAntiLag, desc)
@@ -2193,7 +2133,6 @@ local function disableAntiLag()
     antiLagConnections = {}
 end
 
--- Replace FPS Boost with Anti Lag
 local originalSetFps = setFps
 setFps = function(on)
     State.fpsBoostEnabled = on
@@ -2211,13 +2150,13 @@ applyFPSBoost = function()
     pcall(enableAntiLag)
 end
 
--- Auto-enable if it was on
 task.spawn(function()
     if State.fpsBoostEnabled then
         task.wait(1)
         pcall(enableAntiLag)
     end
 end)
+
 -- ============================================================
 -- STEAL FUNCTIONS
 -- ============================================================
@@ -2275,7 +2214,7 @@ saveConfig = function()
     data.stackHidden=State.stackButtonsHidden; data.uiLocked=State.uiLocked
     data.autoTpDown=State.autoTpDownEnabled
     data.autoTpDownY=State.autoTpDownY
-    data.guiScale=State.guiScale or 1.0  -- Save GUI scale
+    data.guiScale=State.guiScale or 1.0
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
     
     for _, def in ipairs(stackDefs) do
@@ -2436,7 +2375,6 @@ local function setupChar(char)
         bb.AlwaysOnTop=true
         bb.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
         
-        -- Speed display with gradient animation
         local speedBillLbl=Instance.new("TextLabel",bb)
         speedBillLbl.Name="SpeedBillLbl"
         speedBillLbl.Size=UDim2.new(1,0,1,0)
@@ -2450,7 +2388,6 @@ local function setupChar(char)
         speedBillLbl.TextStrokeTransparency=0.1
         speedBillLbl.TextStrokeColor3=Color3.new(0,0,0)
         
-        -- Add gradient animation to speed display
         local speedGrad = Instance.new("UIGradient", speedBillLbl)
         speedGrad.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
@@ -2544,14 +2481,14 @@ RunService.RenderStepped:Connect(function()
             if sl then
                 local vel = hrp.Velocity
                 local hs = Vector3.new(vel.X, 0, vel.Z).Magnitude
-                sl.Text = "speed: " .. string.format("%.1f", hs)
+                sl.Text = "SPEED: " .. string.format("%.1f", hs)
             end
         end
     end)
 end)
 
 -- ============================================================
--- INPUT HANDLER (WITH MUTUAL EXCLUSIVITY)
+-- INPUT HANDLER
 -- ============================================================
 UIS.InputBegan:Connect(function(inp,gp)
     if gp then return end
@@ -2562,7 +2499,6 @@ UIS.InputBegan:Connect(function(inp,gp)
 
     if kc==Keys.speed then
         local newState = not State.speedToggled
-        -- Turn off lagger if turning on carry speed
         if newState and State.laggerEnabled then
             State.laggerEnabled = false
             if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
@@ -2572,7 +2508,6 @@ UIS.InputBegan:Connect(function(inp,gp)
     elseif kc==Keys.autoLeft then
         local newState = not State.autoLeftEnabled
         if newState then
-            -- Turn off auto right if it's on
             if State.autoRightEnabled then
                 State.autoRightEnabled = false
                 if stackBtnRefs.autoRight then stackBtnRefs.autoRight.setOn(false) end
@@ -2586,7 +2521,6 @@ UIS.InputBegan:Connect(function(inp,gp)
     elseif kc==Keys.autoRight then
         local newState = not State.autoRightEnabled
         if newState then
-            -- Turn off auto left if it's on
             if State.autoLeftEnabled then
                 State.autoLeftEnabled = false
                 if stackBtnRefs.autoLeft then stackBtnRefs.autoLeft.setOn(false) end
@@ -2601,7 +2535,6 @@ UIS.InputBegan:Connect(function(inp,gp)
         runDropBrainrot()
     elseif kc==Keys.lagger then
         local newState = not State.laggerEnabled
-        -- Turn off carry speed if turning on lagger
         if newState and State.speedToggled then
             State.speedToggled = false
             if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
@@ -2620,7 +2553,6 @@ UIS.InputBegan:Connect(function(inp,gp)
         end
     elseif kc==Keys.tpDown then doTpDown()
     elseif kc==Keys.aimbot then
-        -- Turn off both auto paths when turning aimbot ON
         if not aimbotActive then
             if State.autoLeftEnabled then
                 State.autoLeftEnabled = false
