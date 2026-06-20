@@ -1,6 +1,3 @@
-
-repeat task.wait() until game:IsLoaded()
-
 -- ═══════════════════════════════════════════════════════════
 --  NYXORA HUB  ─  INTRO SEQUENCE (toggleable)
 --  Blur on world + blinking NYXORA tag + lock-in song, then clears.
@@ -19,6 +16,9 @@ do
     end
     tryRead("NyxoraHub_Config.json")
 end
+
+-- Wait for game to fully load before continuing
+repeat task.wait() until game:IsLoaded()
 
 if _showIntro then do
     local Players      = game:GetService("Players")
@@ -47,14 +47,14 @@ if _showIntro then do
     tag.Size                   = UDim2.new(0, 600, 0, 120)
     tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
     tag.BackgroundTransparency = 1
-    tag.Text                   = "NYXORA"
+    tag.Text                   = ""
+    tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.Font                   = Enum.Font.GothamBlack
     tag.TextSize               = 90
-    tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     tag.TextStrokeTransparency = 0.3
     tag.TextXAlignment         = Enum.TextXAlignment.Center
-    tag.TextTransparency       = 0
+    tag.TextTransparency       = 1  -- Start fully transparent
     tag.ZIndex                 = 110
 
     -- Gradient for NYXORA text (BLACK & WHITE ONLY)
@@ -68,6 +68,15 @@ if _showIntro then do
     })
     tagGrad.Rotation = 0
 
+    -- Underline for typing animation
+    local underline = Instance.new("Frame", introGui)
+    underline.Size = UDim2.new(0, 0, 0, 3)
+    underline.Position = UDim2.new(0.5, 0, 0.5, 60)
+    underline.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    underline.BorderSizePixel = 0
+    underline.ZIndex = 110
+    underline.BackgroundTransparency = 1
+
     -- Subtitle
     local sub = Instance.new("TextLabel", introGui)
     sub.Size                   = UDim2.new(0, 400, 0, 30)
@@ -80,7 +89,7 @@ if _showIntro then do
     sub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     sub.TextStrokeTransparency = 0.5
     sub.TextXAlignment         = Enum.TextXAlignment.Center
-    sub.TextTransparency       = 0
+    sub.TextTransparency       = 1  -- Start hidden
     sub.ZIndex                 = 110
 
     -- Credit text
@@ -95,7 +104,7 @@ if _showIntro then do
     madeBy.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     madeBy.TextStrokeTransparency = 0.6
     madeBy.TextXAlignment         = Enum.TextXAlignment.Center
-    madeBy.TextTransparency       = 0
+    madeBy.TextTransparency       = 1  -- Start hidden
     madeBy.ZIndex                 = 110
 
     -- Sound
@@ -116,35 +125,64 @@ if _showIntro then do
     end
     pcall(function() snd:Play() end)
 
-    -- Blinking animation
+    -- Typing animation with underline
     task.spawn(function()
+        -- Fade in the text
+        TweenService:Create(tag, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        task.wait(0.5)
+
+        local fullText = "NYXORA"
+        for i = 1, #fullText do
+            tag.Text = fullText:sub(1, i)
+            -- Scale up effect on each character
+            TweenService:Create(tag, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextSize = 96}):Play()
+            task.wait(0.05)
+            TweenService:Create(tag, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextSize = 90}):Play()
+            task.wait(0.12)
+        end
+
+        -- Show underline with animation
+        underline.BackgroundTransparency = 0
+        local textWidth = 380
+        TweenService:Create(underline, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, textWidth, 0, 3),
+            Position = UDim2.new(0.5, -textWidth/2, 0.5, 60)
+        }):Play()
+
+        -- Show subtitle and credit
+        TweenService:Create(sub, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        TweenService:Create(madeBy, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        task.wait(0.6)
+
+        -- Blinking animation on the full text
         local blink = 0
-        while task.wait(BLINK_INTERVAL) do
+        local blinkEnd = time() + INTRO_DURATION
+        while time() < blinkEnd do
             blink = blink + 1
             if blink % 2 == 0 then
                 tag.TextTransparency = 0
             else
                 tag.TextTransparency = 0.3
             end
+            task.wait(BLINK_INTERVAL)
         end
+
+        -- Fade out
+        local fadeInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        TweenService:Create(tag,    fadeInfo, {TextTransparency = 1, TextSize = 20}):Play()
+        TweenService:Create(sub,    fadeInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(madeBy, fadeInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(underline, fadeInfo, {BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 3)}):Play()
+        TweenService:Create(snd,    TweenInfo.new(0.6), {Volume = 0}):Play()
+        TweenService:Create(blur,   fadeInfo, {Size = 0}):Play()
+
+        task.wait(0.7)
+
+        pcall(function() snd:Stop(); snd:Destroy() end)
+        pcall(function() blur:Destroy() end)
+        pcall(function() introGui:Destroy() end)
     end)
 
-    -- Wait for intro duration
-    task.wait(INTRO_DURATION)
-
-    -- Fade out
-    local fadeInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    TweenService:Create(tag,    fadeInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(sub,    fadeInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(madeBy, fadeInfo, {TextTransparency = 1}):Play()
-    TweenService:Create(snd,    TweenInfo.new(0.6), {Volume = 0}):Play()
-    TweenService:Create(blur,   fadeInfo, {Size = 0}):Play()
-
-    task.wait(0.7)
-
-    pcall(function() snd:Stop(); snd:Destroy() end)
-    pcall(function() blur:Destroy() end)
-    pcall(function() introGui:Destroy() end)
 end end
 
 -- ============================================================
@@ -183,6 +221,11 @@ local _isfile   = isfile   or (syn and syn.isfile)   or (getgenv and getgenv().i
 local _readfile = readfile  or (syn and syn.readfile)  or (getgenv and getgenv().readfile)  or function() return nil  end
 local _writefile= writefile or (syn and syn.writefile) or (getgenv and getgenv().writefile) or function() end
 local getconnections = getconnections or get_signal_cons or getconnects or (syn and syn.get_signal_cons)
+
+-- ============================================================
+-- RAGDOLL TIMER STATE
+-- ============================================================
+local ragTimerActive = false
 
 -- ============================================================
 -- MUTUAL EXCLUSIVITY FUNCTION
@@ -1111,6 +1154,141 @@ local function doStopUnwalk()
         unwalkAnimateRef.Disabled = false
         unwalkAnimateRef = nil
     end
+end
+
+-- ============================================================
+-- RAGDOLL TIMER WITH GRADIENT
+-- ============================================================
+local function startRagdollTimer()
+    if ragTimerActive then return end
+    ragTimerActive = true
+    
+    task.spawn(function()
+        local char = LP.Character
+        if not char then 
+            ragTimerActive = false 
+            return 
+        end
+        
+        local head = char:FindFirstChild("Head")
+        local bb = head and head:FindFirstChild("NyxoraHubBB")
+        local timerLbl = bb and bb:FindFirstChild("RagdollTimerLbl")
+        local speedLbl = bb and bb:FindFirstChild("SpeedBillLbl")
+        
+        -- Create timer label if it doesn't exist
+        if not timerLbl and bb then
+            timerLbl = Instance.new("TextLabel", bb)
+            timerLbl.Name = "RagdollTimerLbl"
+            timerLbl.Size = UDim2.new(1, 0, 0.5, 0)
+            timerLbl.Position = UDim2.new(0, 0, 0.5, 0)
+            timerLbl.BackgroundTransparency = 1
+            timerLbl.Text = ""
+            timerLbl.TextColor3 = THEME.LIGHT_BLUE
+            timerLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+            timerLbl.TextSize = 30
+            timerLbl.TextXAlignment = Enum.TextXAlignment.Center
+            timerLbl.TextYAlignment = Enum.TextYAlignment.Center
+            timerLbl.TextStrokeTransparency = 0.1
+            timerLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+            timerLbl.ZIndex = 10
+            timerLbl.Visible = false
+            
+            -- Create gradient for the timer label
+            local timerGrad = Instance.new("UIGradient", timerLbl)
+            timerGrad.Name = "TimerGradient"
+            timerGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 255, 100)),
+                ColorSequenceKeypoint.new(0.25, Color3.fromRGB(0, 200, 255)),
+                ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
+                ColorSequenceKeypoint.new(0.75, Color3.fromRGB(255, 200, 0)),
+                ColorSequenceKeypoint.new(1,    Color3.fromRGB(255, 100, 0)),
+            })
+            timerGrad.Rotation = 45
+            timerGrad.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(0.5, 0),
+                NumberSequenceKeypoint.new(1, 0),
+            })
+            
+            -- Animate the gradient rotation
+            task.spawn(function()
+                while timerLbl and timerLbl.Parent and timerLbl.Visible do
+                    local grad = timerLbl:FindFirstChild("TimerGradient")
+                    if grad then
+                        TweenService:Create(grad, TweenInfo.new(2, Enum.EasingStyle.Linear), {Rotation = grad.Rotation + 180}):Play()
+                        task.wait(2)
+                    else
+                        break
+                    end
+                end
+            end)
+        end
+        
+        -- Create speed label if it doesn't exist
+        if not speedLbl and bb then
+            speedLbl = Instance.new("TextLabel", bb)
+            speedLbl.Name = "SpeedBillLbl"
+            speedLbl.Size = UDim2.new(1, 0, 0.5, 0)
+            speedLbl.Position = UDim2.new(0, 0, 0.5, 0)
+            speedLbl.BackgroundTransparency = 1
+            speedLbl.Text = "SPEED: 0.0"
+            speedLbl.TextColor3 = THEME.LIGHT_BLUE
+            speedLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+            speedLbl.TextSize = 20
+            speedLbl.TextScaled = true
+            speedLbl.TextStrokeTransparency = 0.1
+            speedLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+            speedLbl.ZIndex = 10
+            speedLbl.Visible = true
+        end
+        
+        if not timerLbl then
+            ragTimerActive = false
+            return
+        end
+        
+        local countdown = 3
+        timerLbl.Visible = true
+        
+        -- Hide speed meter during ragdoll
+        if speedLbl then
+            speedLbl.Visible = false
+        end
+        
+        while countdown > 0 do
+            timerLbl.Text = tostring(countdown)
+            -- Let the gradient handle the color
+            task.wait(1)
+            countdown = countdown - 1
+        end
+        
+        timerLbl.Text = "GO"
+        -- Let the gradient handle the color
+        
+        -- Wait until player is no longer ragdolled
+        repeat 
+            task.wait(0.1) 
+        until (function()
+            local c = LP.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if not hum then return true end
+            local st = hum:GetState()
+            return st ~= Enum.HumanoidStateType.Physics 
+                and st ~= Enum.HumanoidStateType.Ragdoll 
+                and st ~= Enum.HumanoidStateType.FallingDown
+                and hum.PlatformStand ~= true
+        end)()
+        
+        timerLbl.Visible = false
+        timerLbl.Text = ""
+        
+        -- Show speed meter again
+        if speedLbl then
+            speedLbl.Visible = true
+        end
+        
+        ragTimerActive = false
+    end)
 end
 
 -- ============================================================
@@ -2371,14 +2549,14 @@ local function setupChar(char)
         local oldBB=head:FindFirstChild("NyxoraHubBB"); if oldBB then oldBB:Destroy() end
         local bb=Instance.new("BillboardGui",head)
         bb.Name="NyxoraHubBB"
-        bb.Size=UDim2.new(0,120,0,30)
+        bb.Size=UDim2.new(0,120,0,60)  -- Increased height to accommodate timer
         bb.StudsOffset=Vector3.new(0,2.5,0)
         bb.AlwaysOnTop=true
         bb.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
         
         local speedBillLbl=Instance.new("TextLabel",bb)
         speedBillLbl.Name="SpeedBillLbl"
-        speedBillLbl.Size=UDim2.new(1,0,1,0)
+        speedBillLbl.Size=UDim2.new(1,0,0.5,0)
         speedBillLbl.Position=UDim2.new(0,0,0,0)
         speedBillLbl.BackgroundTransparency=1
         speedBillLbl.Text="SPEED: 0.0"
@@ -2405,6 +2583,35 @@ local function setupChar(char)
                 speedGrad.Rotation = 0
             end
         end)
+        
+        -- Create Ragdoll Timer Label (initially hidden)
+        local timerLbl = Instance.new("TextLabel", bb)
+        timerLbl.Name = "RagdollTimerLbl"
+        timerLbl.Size = UDim2.new(1, 0, 0.5, 0)
+        timerLbl.Position = UDim2.new(0, 0, 0.5, 0)
+        timerLbl.BackgroundTransparency = 1
+        timerLbl.Text = ""
+        timerLbl.TextColor3 = THEME.LIGHT_BLUE
+        timerLbl.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+        timerLbl.TextSize = 30
+        timerLbl.TextXAlignment = Enum.TextXAlignment.Center
+        timerLbl.TextYAlignment = Enum.TextYAlignment.Center
+        timerLbl.TextStrokeTransparency = 0.1
+        timerLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+        timerLbl.ZIndex = 10
+        timerLbl.Visible = false
+        
+        -- Create gradient for timer label in setup
+        local timerGrad = Instance.new("UIGradient", timerLbl)
+        timerGrad.Name = "TimerGradient"
+        timerGrad.Color = ColorSequence.new({
+             ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),      -- Black
+             ColorSequenceKeypoint.new(0.25, Color3.fromRGB(60, 60, 60)),   -- Dark gray
+             ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)), -- White
+             ColorSequenceKeypoint.new(0.75, Color3.fromRGB(60, 60, 60)),   -- Dark gray
+             ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),      -- Black
+        })
+        timerGrad.Rotation = 45
     end
     if Conns.unwalk then Conns.unwalk:Disconnect(); Conns.unwalk = nil end
     unwalkAnimateRef = nil
@@ -2418,6 +2625,26 @@ end
 
 LP.CharacterAdded:Connect(setupChar)
 if LP.Character then task.spawn(function() setupChar(LP.Character) end) end
+
+-- ============================================================
+-- RAGDOLL DETECTION LOOP
+-- ============================================================
+RunService.Heartbeat:Connect(function()
+    local char = LP.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    
+    local st = hum:GetState()
+    local isRagdolled = (st == Enum.HumanoidStateType.Physics 
+        or st == Enum.HumanoidStateType.Ragdoll 
+        or st == Enum.HumanoidStateType.FallingDown)
+        or hum.PlatformStand == true
+    
+    if isRagdolled then
+        startRagdollTimer()
+    end
+end)
 
 -- ============================================================
 -- RUNTIME LOOPS
