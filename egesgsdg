@@ -2660,30 +2660,43 @@ end)
 -- ============================================================
 -- INF JUMP
 -- ============================================================
+-- Infinite Jump Implementation
+
+-- Toggle state
+State.infJumpEnabled = false  -- Set to true to enable
+
+-- The actual infinite jump logic (from your script)
+UIS.JumpRequest:Connect(function()
+    if not State.infJumpEnabled then return end
+    local c = LP.Character
+    if not c then return end
+    local root = c:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 53, root.AssemblyLinearVelocity.Z)
+    end
+end)
+
+-- Additional jump support with heartbeat
 RunService.Heartbeat:Connect(function()
-    if not State.infJumpEnabled and not State.autoTpDownEnabled then return end
-    local c = LP.Character; if not c then return end
+    if not State.infJumpEnabled then return end
+    local c = LP.Character
+    if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
     local hum2 = c:FindFirstChildOfClass("Humanoid")
     if not root or not hum2 then return end
 
-    if State.infJumpEnabled then
-        local jumpHeld = UIS:IsKeyDown(Enum.KeyCode.Space)
-            or UIS:IsKeyDown(Enum.KeyCode.ButtonA)
-            or (hum2.Jump == true)
-        if jumpHeld and root.Velocity.Y < 30 then
-            root.Velocity = Vector3.new(root.Velocity.X, 55, root.Velocity.Z)
-        end
-        if root.Velocity.Y < -120 then
-            root.Velocity = Vector3.new(root.Velocity.X, -120, root.Velocity.Z)
-        end
+    -- Check if jump key is held (space or gamepad A)
+    local jumpHeld = UIS:IsKeyDown(Enum.KeyCode.Space) or 
+                     UIS:IsKeyDown(Enum.KeyCode.ButtonA) or 
+                     (hum2.Jump == true)
+    
+    if jumpHeld and root.Velocity.Y < 30 then
+        root.Velocity = Vector3.new(root.Velocity.X, 55, root.Velocity.Z)
     end
-
-    if State.autoTpDownEnabled then
-        if root.Position.Y >= State.autoTpDownY then
-            local rot = root.CFrame.Rotation
-            root.CFrame = CFrame.new(root.Position.X, -8.80, root.Position.Z) * rot
-        end
+    
+    -- Optional: limit fall speed
+    if root.Velocity.Y < -120 then
+        root.Velocity = Vector3.new(root.Velocity.X, -120, root.Velocity.Z)
     end
 end)
 
@@ -2709,7 +2722,7 @@ RunService.RenderStepped:Connect(function()
             if sl then
                 local vel = hrp.Velocity
                 local hs = Vector3.new(vel.X, 0, vel.Z).Magnitude
-                sl.Text = "SPEED: " .. string.format("%.1f", hs)
+                sl.Text = "Speed: " .. string.format("%.1f", hs)
             end
         end
     end)
