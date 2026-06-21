@@ -28,7 +28,7 @@ if _showIntro then do
 
     local SONG_ID        = "rbxassetid://126107591945718"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 1.5
+    local INTRO_DURATION = 3
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
@@ -47,7 +47,7 @@ if _showIntro then do
     tag.Size                   = UDim2.new(0, 600, 0, 120)
     tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
     tag.BackgroundTransparency = 1
-    tag.Text                   = ""
+    tag.Text                   = "N      Y      X      O      R      A"
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.Font                   = Enum.Font.GothamBlack
     tag.TextSize               = 90
@@ -82,7 +82,7 @@ if _showIntro then do
     sub.Size                   = UDim2.new(0, 400, 0, 30)
     sub.Position               = UDim2.new(0.5, -200, 0.5, 60)
     sub.BackgroundTransparency = 1
-    sub.Text                   = "H  U  B"
+    sub.Text                   = "D U E L S"
     sub.Font                   = Enum.Font.GothamBold
     sub.TextSize               = 30
     sub.TextColor3             = Color3.fromRGB(200, 200, 200)
@@ -97,7 +97,7 @@ if _showIntro then do
     madeBy.Size                   = UDim2.new(0, 400, 0, 16)
     madeBy.Position               = UDim2.new(0.5, -200, 0.5, 100)
     madeBy.BackgroundTransparency = 1
-    madeBy.Text                   = "Nyxora"
+    madeBy.Text                   = "Loading..."
     madeBy.Font                   = Enum.Font.GothamMedium
     madeBy.TextSize               = 15
     madeBy.TextColor3             = Color3.fromRGB(180, 180, 180)
