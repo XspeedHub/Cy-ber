@@ -47,7 +47,7 @@ if _showIntro then do
     tag.Size                   = UDim2.new(0, 600, 0, 120)
     tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
     tag.BackgroundTransparency = 1
-    tag.Text                   = "N      Y      X      O      R      A"
+    tag.Text                   = "W O Z Z Y"
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.Font                   = Enum.Font.GothamBlack
     tag.TextSize               = 90
@@ -131,7 +131,7 @@ if _showIntro then do
         TweenService:Create(tag, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
         task.wait(0.5)
 
-        local fullText = "NYXORA"
+        local fullText = "N Y X O R A"
         for i = 1, #fullText do
             tag.Text = fullText:sub(1, i)
             -- Scale up effect on each character
