@@ -745,7 +745,7 @@ hudPingVal.TextXAlignment         = Enum.TextXAlignment.Left
 hudPingVal.ZIndex                 = 3
 
 local pTrack = Instance.new("Frame", hudGui)
-pTrack.Size             = UDim2.new(0, 280, 0, 20)
+pTrack.Size             = UDim2.new(0, 280, 0, 7)
 pTrack.Position         = UDim2.new(0.5, -140, 0, 50)
 pTrack.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
 pTrack.BorderSizePixel  = 0
