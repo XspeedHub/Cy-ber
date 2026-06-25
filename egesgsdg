@@ -28,7 +28,7 @@ if _showIntro then do
 
     local SONG_ID        = "rbxassetid://126107591945718"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 3
+    local INTRO_DURATION = 2
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
@@ -47,7 +47,7 @@ if _showIntro then do
     tag.Size                   = UDim2.new(0, 600, 0, 120)
     tag.Position               = UDim2.new(0.5, -300, 0.5, -60)
     tag.BackgroundTransparency = 1
-    tag.Text                   = "W O Z Z Y"
+    tag.Text                   = ""
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.Font                   = Enum.Font.GothamBlack
     tag.TextSize               = 90
@@ -226,6 +226,208 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 -- RAGDOLL TIMER STATE
 -- ============================================================
 local ragTimerActive = false
+
+-- ============================================================
+-- STEAL TRACKER / PROGRESS BAR (From Zyriel Duels)
+-- ============================================================
+local STEAL_TRACKER_COLORS = {
+    Border = Color3.fromRGB(255, 255, 255),
+    Progress = Color3.fromRGB(200, 200, 200),
+}
+
+local StealTracker = {
+    screenGui = nil,
+    barContainer = nil,
+    progressBar = nil,
+    statusLabel = nil,
+    percentLabel = nil,  -- NEW: percentage label
+    progressConn = nil,
+    isStealing = false,
+    stealDuration = 0.2,
+}
+
+local function createStealTrackerUI()
+    if StealTracker.screenGui then return end
+
+    StealTracker.screenGui = Instance.new("ScreenGui")
+    StealTracker.screenGui.Name = "NyxoraStealProgress"
+    StealTracker.screenGui.ResetOnSpawn = false
+    StealTracker.screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    StealTracker.screenGui.Parent = LP:WaitForChild("PlayerGui")
+
+    StealTracker.barContainer = Instance.new("Frame")
+    StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)  -- Increased height for percentage
+    StealTracker.barContainer.Position = UDim2.new(0.5, -110, 0.08, 0)
+    StealTracker.barContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    StealTracker.barContainer.BackgroundTransparency = 0.15
+    StealTracker.barContainer.BorderSizePixel = 0
+    StealTracker.barContainer.Parent = StealTracker.screenGui
+    StealTracker.barContainer.Visible = false
+
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 14)
+    containerCorner.Parent = StealTracker.barContainer
+
+    local containerStroke = Instance.new("UIStroke")
+    containerStroke.Color = STEAL_TRACKER_COLORS.Border
+    containerStroke.Thickness = 1.5
+    containerStroke.Transparency = 0.7
+    containerStroke.Parent = StealTracker.barContainer
+
+    local barBackground = Instance.new("Frame")
+    barBackground.Size = UDim2.new(1, -10, 0.65, -6)
+    barBackground.Position = UDim2.new(0, 5, 0.35, 0)
+    barBackground.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    barBackground.BackgroundTransparency = 0.3
+    barBackground.BorderSizePixel = 0
+    barBackground.Parent = StealTracker.barContainer
+
+    local barBgCorner = Instance.new("UICorner")
+    barBgCorner.CornerRadius = UDim.new(0, 10)
+    barBgCorner.Parent = barBackground
+
+    StealTracker.progressBar = Instance.new("Frame")
+    StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
+    StealTracker.progressBar.BackgroundColor3 = STEAL_TRACKER_COLORS.Progress
+    StealTracker.progressBar.BorderSizePixel = 0
+    StealTracker.progressBar.Parent = barBackground
+
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(0, 10)
+    barCorner.Parent = StealTracker.progressBar
+
+    -- Add gradient to progress bar for black & white theme
+    local progressGrad = Instance.new("UIGradient", StealTracker.progressBar)
+    progressGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),
+    })
+
+    -- Status label (STEALING / READY)
+    StealTracker.statusLabel = Instance.new("TextLabel")
+    StealTracker.statusLabel.Size = UDim2.new(0.5, -8, 0.3, 0)
+    StealTracker.statusLabel.Position = UDim2.new(0, 8, 0.02, 0)
+    StealTracker.statusLabel.BackgroundTransparency = 1
+    StealTracker.statusLabel.Text = "READY"
+    StealTracker.statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    StealTracker.statusLabel.TextSize = 10
+    StealTracker.statusLabel.Font = Enum.Font.GothamBold
+    StealTracker.statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StealTracker.statusLabel.Parent = StealTracker.barContainer
+
+    -- Percentage label (NEW)
+    StealTracker.percentLabel = Instance.new("TextLabel")
+    StealTracker.percentLabel.Size = UDim2.new(0.5, -8, 0.3, 0)
+    StealTracker.percentLabel.Position = UDim2.new(0.5, 0, 0.02, 0)
+    StealTracker.percentLabel.BackgroundTransparency = 1
+    StealTracker.percentLabel.Text = "0%"
+    StealTracker.percentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StealTracker.percentLabel.TextSize = 10
+    StealTracker.percentLabel.Font = Enum.Font.GothamBold
+    StealTracker.percentLabel.TextXAlignment = Enum.TextXAlignment.Right
+    StealTracker.percentLabel.Parent = StealTracker.barContainer
+
+    -- Add gradient to percentage label
+    local pctGrad = Instance.new("UIGradient", StealTracker.percentLabel)
+    pctGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),
+    })
+end
+
+local function updateStealProgress()
+    if not StealTracker.isStealing then return end
+    local startTime = tick()
+    local duration = StealTracker.stealDuration
+
+    if StealTracker.statusLabel then
+        StealTracker.statusLabel.Text = "STEALING"
+    end
+    if StealTracker.progressBar then
+        StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
+    end
+    if StealTracker.percentLabel then
+        StealTracker.percentLabel.Text = "0%"
+    end
+
+    if StealTracker.progressConn then
+        StealTracker.progressConn:Disconnect()
+    end
+
+    StealTracker.progressConn = RunService.Heartbeat:Connect(function()
+        if not StealTracker.isStealing then
+            if StealTracker.progressConn then StealTracker.progressConn:Disconnect() end
+            StealTracker.progressConn = nil
+            return
+        end
+        local elapsed = tick() - startTime
+        local progress = math.min(elapsed / duration, 1)
+        
+        -- Update progress bar
+        if StealTracker.progressBar then
+            StealTracker.progressBar.Size = UDim2.new(progress, 0, 1, 0)
+        end
+        
+        -- Update percentage label (1-100)
+        if StealTracker.percentLabel then
+            local percent = math.floor(progress * 100)
+            StealTracker.percentLabel.Text = percent .. "%"
+        end
+        
+        if progress >= 1 then
+            if StealTracker.progressConn then StealTracker.progressConn:Disconnect() end
+            StealTracker.progressConn = nil
+            if StealTracker.statusLabel then
+                StealTracker.statusLabel.Text = "READY"
+            end
+            if StealTracker.percentLabel then
+                StealTracker.percentLabel.Text = "100%"
+            end
+        end
+    end)
+end
+
+local function showStealProgress(duration)
+    if not StealTracker.screenGui then
+        createStealTrackerUI()
+    end
+    
+    StealTracker.stealDuration = duration or 0.2
+    StealTracker.isStealing = true
+    
+    if StealTracker.barContainer then
+        StealTracker.barContainer.Visible = true
+    end
+    
+    updateStealProgress()
+end
+
+local function hideStealProgress()
+    StealTracker.isStealing = false
+    
+    if StealTracker.progressConn then
+        StealTracker.progressConn:Disconnect()
+        StealTracker.progressConn = nil
+    end
+    
+    if StealTracker.barContainer then
+        StealTracker.barContainer.Visible = false
+    end
+    
+    if StealTracker.progressBar then
+        StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
+    end
+    
+    if StealTracker.statusLabel then
+        StealTracker.statusLabel.Text = "READY"
+    end
+    
+    if StealTracker.percentLabel then
+        StealTracker.percentLabel.Text = "0%"
+    end
+end
 
 -- ============================================================
 -- MUTUAL EXCLUSIVITY FUNCTION
@@ -620,213 +822,6 @@ local function setGuiScale(scale)
         uiScaleObj.Scale = State.guiScale
     end
     pcall(saveConfig)
-end
-
--- ============================================================
--- HUD BAR (BLACK & WHITE)
--- ============================================================
-local hudGui = Instance.new("ScreenGui")
-hudGui.Name           = "NyxoraHubHUD"
-hudGui.ResetOnSpawn   = false
-hudGui.DisplayOrder   = 20
-hudGui.IgnoreGuiInset = true
-hudGui.Parent         = LP:WaitForChild("PlayerGui")
-
-local hudFrame = Instance.new("Frame", hudGui)
-hudFrame.Name                   = "HudFrame"
-hudFrame.Size                   = UDim2.new(0, 280, 0, 36)
-hudFrame.Position               = UDim2.new(0.5, -140, 0, 10)
-hudFrame.BackgroundColor3       = THEME.OBSIDIAN
-hudFrame.BackgroundTransparency = 0.15
-hudFrame.Active                 = true
-hudFrame.BorderSizePixel        = 0
-mkCorner(hudFrame, 10)
-mkYogaBorder(hudFrame, 1.5, 3.0, 140)
-
-local hudLogo = Instance.new("ImageLabel", hudFrame)
-hudLogo.Size = UDim2.new(0, 22, 0, 22)
-hudLogo.Position = UDim2.new(0, 8, 0.5, -11)
-hudLogo.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
-hudLogo.BackgroundTransparency = 0.5
-hudLogo.BorderSizePixel = 0
-hudLogo.Image = "rbxassetid://105132226968722"
-hudLogo.ScaleType = Enum.ScaleType.Fit
-mkCorner(hudLogo, 6)
-mkYogaBorder(hudLogo, 1, 2, 120)
-
-local hudFpsLbl = Instance.new("TextLabel", hudFrame)
-hudFpsLbl.Size                   = UDim2.new(0, 28, 1, 0)
-hudFpsLbl.Position               = UDim2.new(0, 38, 0, 0)
-hudFpsLbl.BackgroundTransparency = 1
-hudFpsLbl.Text                   = "FPS"
-hudFpsLbl.TextColor3             = THEME.LIGHT_BLUE
-hudFpsLbl.Font                   = Enum.Font.GothamBold
-hudFpsLbl.TextSize               = 10
-hudFpsLbl.TextXAlignment         = Enum.TextXAlignment.Left
-hudFpsLbl.ZIndex                 = 3
-
-local hudFpsVal = Instance.new("TextLabel", hudFrame)
-hudFpsVal.Size                   = UDim2.new(0, 40, 1, 0)
-hudFpsVal.Position               = UDim2.new(0, 68, 0, 0)
-hudFpsVal.BackgroundTransparency = 1
-hudFpsVal.Text                   = "0"
-hudFpsVal.TextColor3             = THEME.TEXT_WHITE
-hudFpsVal.Font                   = Enum.Font.GothamBlack
-hudFpsVal.TextSize               = 12
-hudFpsVal.TextXAlignment         = Enum.TextXAlignment.Left
-hudFpsVal.ZIndex                 = 3
-
-local hudDiv1 = Instance.new("Frame", hudFrame)
-hudDiv1.Size                   = UDim2.new(0, 1, 0, 20)
-hudDiv1.Position               = UDim2.new(0, 95, 0.5, -10)
-hudDiv1.BackgroundColor3       = THEME.LIGHT_BLUE
-hudDiv1.BackgroundTransparency = 0.5
-hudDiv1.BorderSizePixel        = 0
-hudDiv1.ZIndex                 = 3
-
-local hudTitle = Instance.new("TextLabel", hudFrame)
-hudTitle.Size                   = UDim2.new(0, 100, 1, 0)
-hudTitle.Position               = UDim2.new(0, 110, 0, 0)
-hudTitle.BackgroundTransparency = 1
-hudTitle.Text                   = "NYXORA HUB"
-hudTitle.TextColor3             = THEME.TEXT_WHITE
-hudTitle.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
-hudTitle.TextSize               = 11
-hudTitle.TextXAlignment         = Enum.TextXAlignment.Left
-hudTitle.TextStrokeTransparency = 0.1
-hudTitle.TextStrokeColor3       = Color3.new(0,0,0)
-hudTitle.ZIndex                 = 3
-
-local hudTitleGrad = Instance.new("UIGradient", hudTitle)
-hudTitleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,    THEME.OBSIDIAN),
-    ColorSequenceKeypoint.new(0.35, THEME.LIGHT_BLUE),
-    ColorSequenceKeypoint.new(0.5,  THEME.TEXT_WHITE),
-    ColorSequenceKeypoint.new(0.65, THEME.LIGHT_BLUE),
-    ColorSequenceKeypoint.new(1,    THEME.OBSIDIAN),
-})
-hudTitleGrad.Rotation = 0
-task.spawn(function()
-    while hudTitle and hudTitle.Parent do
-        TweenService:Create(hudTitleGrad, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation=360}):Play()
-        task.wait(1.6)
-        hudTitleGrad.Rotation = 0
-    end
-end)
-
-local hudDiv2 = Instance.new("Frame", hudFrame)
-hudDiv2.Size                   = UDim2.new(0, 1, 0, 20)
-hudDiv2.Position               = UDim2.new(0, 195, 0.5, -10)
-hudDiv2.BackgroundColor3       = THEME.LIGHT_BLUE
-hudDiv2.BackgroundTransparency = 0.5
-hudDiv2.BorderSizePixel        = 0
-hudDiv2.ZIndex                 = 3
-
-local hudPingLbl = Instance.new("TextLabel", hudFrame)
-hudPingLbl.Size                   = UDim2.new(0, 34, 1, 0)
-hudPingLbl.Position               = UDim2.new(0, 205, 0, 0)
-hudPingLbl.BackgroundTransparency = 1
-hudPingLbl.Text                   = "PING"
-hudPingLbl.TextColor3             = THEME.LIGHT_BLUE
-hudPingLbl.Font                   = Enum.Font.GothamBold
-hudPingLbl.TextSize               = 9
-hudPingLbl.TextXAlignment         = Enum.TextXAlignment.Left
-hudPingLbl.ZIndex                 = 3
-
-local hudPingVal = Instance.new("TextLabel", hudFrame)
-hudPingVal.Size                   = UDim2.new(0, 50, 1, 0)
-hudPingVal.Position               = UDim2.new(0, 235, 0, 0)
-hudPingVal.BackgroundTransparency = 1
-hudPingVal.Text                   = "0ms"
-hudPingVal.TextColor3             = THEME.TEXT_WHITE
-hudPingVal.Font                   = Enum.Font.GothamBlack
-hudPingVal.TextSize               = 11
-hudPingVal.TextXAlignment         = Enum.TextXAlignment.Left
-hudPingVal.ZIndex                 = 3
-
-local pTrack = Instance.new("Frame", hudGui)
-pTrack.Size             = UDim2.new(0, 280, 0, 7)
-pTrack.Position         = UDim2.new(0.5, -140, 0, 50)
-pTrack.BackgroundColor3 = THEME.OBSIDIAN_LIGHT
-pTrack.BorderSizePixel  = 0
-pTrack.ZIndex           = 3
-mkCorner(pTrack, 3)
-mkYogaBorder(pTrack, 1, 2, 140)
-
-local progressFill = Instance.new("Frame", pTrack)
-progressFill.Size             = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = THEME.LIGHT_BLUE
-progressFill.BorderSizePixel  = 0
-progressFill.ZIndex           = 4
-mkCorner(progressFill, 3)
-
-local fillGrad = Instance.new("UIGradient", progressFill)
-fillGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,   THEME.OBSIDIAN),
-    ColorSequenceKeypoint.new(0.5, THEME.LIGHT_BLUE),
-    ColorSequenceKeypoint.new(1,   THEME.OBSIDIAN),
-})
-
-local stealPctLbl = Instance.new("TextLabel", pTrack)
-stealPctLbl.Size                   = UDim2.new(1, 0, 1, 0)
-stealPctLbl.BackgroundTransparency = 1
-stealPctLbl.Text                   = "0%"
-stealPctLbl.TextColor3             = THEME.TEXT_WHITE
-stealPctLbl.FontFace               = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
-stealPctLbl.TextSize               = 7
-stealPctLbl.TextXAlignment         = Enum.TextXAlignment.Center
-stealPctLbl.TextYAlignment         = Enum.TextYAlignment.Center
-stealPctLbl.ZIndex                 = 6
-
--- HUD drag
-do
-    local dDrag, dStart, dPos = false, nil, nil
-    hudFrame.InputBegan:Connect(function(inp)
-        if State.uiLocked then return end
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-            dDrag = true; dStart = inp.Position; dPos = hudFrame.Position
-            inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dDrag = false end end)
-        end
-    end)
-    UIS.InputChanged:Connect(function(inp)
-        if not dDrag or State.uiLocked then return end
-        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
-            local d = inp.Position - dStart
-            hudFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
-            pTrack.Position = UDim2.new(hudFrame.Position.X.Scale, hudFrame.Position.X.Offset, hudFrame.Position.Y.Scale, hudFrame.Position.Y.Offset + 40)
-        end
-    end)
-end
-
--- FPS/Ping updater
-do
-    local _fc = 0; local _lt = tick()
-    RunService.RenderStepped:Connect(function()
-        _fc += 1
-        local now = tick()
-        if now - _lt >= 1 then
-            hudFpsVal.Text = tostring(math.floor(_fc / (now - _lt)))
-            _fc = 0; _lt = now
-        end
-        local ping = 0
-        pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-        if ping == 0 then pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["DataPing"]:GetValue()) end) end
-        if ping == 0 then pcall(function() ping = math.floor(LP:GetNetworkPing() * 1000) end) end
-        hudPingVal.Text = tostring(ping) .. "ms"
-        
-        if ping < 50 then
-            hudPingVal.TextColor3 = Color3.fromRGB(0, 255, 100)
-        elseif ping < 120 then
-            hudPingVal.TextColor3 = Color3.fromRGB(255, 200, 0)
-        else
-            hudPingVal.TextColor3 = Color3.fromRGB(255, 50, 50)
-        end
-    end)
-end
-
-local function resetProgressBar()
-    stealPctLbl.Text = "0%"
-    progressFill.Size = UDim2.new(0, 0, 1, 0)
 end
 
 -- ============================================================
@@ -2337,7 +2332,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- STEAL FUNCTIONS
+-- STEAL FUNCTIONS (WITH TRACKER INTEGRATED)
 -- ============================================================
 local function isMyPlotByName(pn)
     local ct=tick(); if Steal.plotCache[pn] and (ct-(Steal.plotCacheTime[pn] or 0))<PLOT_CACHE_DURATION then return Steal.plotCache[pn] end
@@ -2360,13 +2355,19 @@ local function executeSteal(prompt)
     local ct=tick(); if ct-State.lastStealTick<STEAL_COOLDOWN then return end; if State.isStealing then return end
     if not Steal.Data[prompt] then Steal.Data[prompt]={hold={},trigger={},ready=true}; pcall(function() if getconnections then for _,c2 in ipairs(getconnections(prompt.PromptButtonHoldBegan)) do if c2.Function then table.insert(Steal.Data[prompt].hold,c2.Function) end end; for _,c2 in ipairs(getconnections(prompt.Triggered)) do if c2.Function then table.insert(Steal.Data[prompt].trigger,c2.Function) end end else Steal.Data[prompt].useFallback=true end end) end
     local data=Steal.Data[prompt]; if not data.ready then return end; data.ready=false; State.isStealing=true; State.stealStartTime=ct; State.lastStealTick=ct
-    if Conns.progress then Conns.progress:Disconnect() end
-    Conns.progress=RunService.Heartbeat:Connect(function() if not State.isStealing then Conns.progress:Disconnect(); return end; local prog=math.clamp((tick()-State.stealStartTime)/Steal.StealDuration,0,1); progressFill.Size=UDim2.new(prog,0,1,0); stealPctLbl.Text=math.floor(prog*100).."%" end)
+    
+    -- SHOW THE TRACKER
+    showStealProgress(Steal.StealDuration)
+    
     task.spawn(function()
         local ok=false; pcall(function() if not data.useFallback then for _,fn in ipairs(data.hold) do task.spawn(fn) end; task.wait(Steal.StealDuration); for _,fn in ipairs(data.trigger) do task.spawn(fn) end; ok=true end end)
         if not ok and fireproximityprompt then pcall(function() fireproximityprompt(prompt); ok=true end) end
         if not ok then pcall(function() prompt:InputHoldBegin(); task.wait(Steal.StealDuration); prompt:InputHoldEnd() end) end
-        if Conns.progress then Conns.progress:Disconnect() end; resetProgressBar(); data.ready=true; State.isStealing=false
+        
+        -- HIDE THE TRACKER
+        hideStealProgress()
+        
+        data.ready=true; State.isStealing=false
     end)
 end
 
@@ -2376,7 +2377,8 @@ startAutoSteal=function()
 end
 stopAutoSteal=function()
     if Conns.autoSteal then Conns.autoSteal:Disconnect(); Conns.autoSteal=nil end
-    State.isStealing=false; State.lastStealTick=0; Steal.plotCache={}; Steal.plotCacheTime={}; Steal.cachedPrompts={}; resetProgressBar()
+    State.isStealing=false; State.lastStealTick=0; Steal.plotCache={}; Steal.plotCacheTime={}; Steal.cachedPrompts={}
+    hideStealProgress()
 end
 
 -- ============================================================
@@ -2404,20 +2406,6 @@ saveConfig = function()
             data["BTNPOS_"..def.key.."_YS"] = w.Position.Y.Scale
             data["BTNPOS_"..def.key.."_YO"] = w.Position.Y.Offset
         end
-    end
-    
-    if hudFrame and hudFrame.Parent then
-        data["HUD_XS"] = hudFrame.Position.X.Scale
-        data["HUD_XO"] = hudFrame.Position.X.Offset
-        data["HUD_YS"] = hudFrame.Position.Y.Scale
-        data["HUD_YO"] = hudFrame.Position.Y.Offset
-    end
-    
-    if pTrack and pTrack.Parent then
-        data["PB_XS"] = pTrack.Position.X.Scale
-        data["PB_XO"] = pTrack.Position.X.Offset
-        data["PB_YS"] = pTrack.Position.Y.Scale
-        data["PB_YO"] = pTrack.Position.Y.Offset
     end
     
     if mainOuter and mainOuter.Parent then
@@ -2495,26 +2483,6 @@ loadConfig = function()
                 if xs and xo and ys and yo then
                     w.Position = UDim2.new(xs, xo, ys, yo)
                 end
-            end
-        end
-        
-        if hudFrame then
-            local xs = cfg["HUD_XS"]
-            local xo = cfg["HUD_XO"]
-            local ys = cfg["HUD_YS"]
-            local yo = cfg["HUD_YO"]
-            if xs and xo and ys and yo then
-                hudFrame.Position = UDim2.new(xs, xo, ys, yo)
-            end
-        end
-        
-        if pTrack then
-            local xs = cfg["PB_XS"]
-            local xo = cfg["PB_XO"]
-            local ys = cfg["PB_YS"]
-            local yo = cfg["PB_YO"]
-            if xs and xo and ys and yo then
-                pTrack.Position = UDim2.new(xs, xo, ys, yo)
             end
         end
         
