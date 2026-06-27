@@ -5,7 +5,7 @@
 local _showIntro = true  -- default ON
 do
     local function tryRead(fname)
-        local ok, exists = pcall(isfile, fname)
+        local ok, exists = pcall(isfile, fname)     
         if not (ok and exists) then return end
         local ok2, cfg = pcall(function()
             return game:GetService("HttpService"):JSONDecode(readfile(fname))
@@ -26,9 +26,9 @@ if _showIntro then do
     local CoreGui      = game:GetService("CoreGui")
     local LP           = Players.LocalPlayer
 
-    local SONG_ID        = "rbxassetid://126107591945718"
+    local SONG_ID        = "rbxassetid://119414415681261"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 2
+    local INTRO_DURATION = 5
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
@@ -50,7 +50,7 @@ if _showIntro then do
     tag.Text                   = ""
     tag.TextColor3             = Color3.fromRGB(255, 255, 255)
     tag.Font                   = Enum.Font.GothamBlack
-    tag.TextSize               = 90
+    tag.TextSize               = 60
     tag.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     tag.TextStrokeTransparency = 0.3
     tag.TextXAlignment         = Enum.TextXAlignment.Center
@@ -82,9 +82,9 @@ if _showIntro then do
     sub.Size                   = UDim2.new(0, 400, 0, 30)
     sub.Position               = UDim2.new(0.5, -200, 0.5, 60)
     sub.BackgroundTransparency = 1
-    sub.Text                   = "D U E L S"
+    sub.Text                   = "Made By Wozzy"
     sub.Font                   = Enum.Font.GothamBold
-    sub.TextSize               = 30
+    sub.TextSize               = 20
     sub.TextColor3             = Color3.fromRGB(200, 200, 200)
     sub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
     sub.TextStrokeTransparency = 0.5
@@ -135,16 +135,19 @@ if _showIntro then do
         for i = 1, #fullText do
             tag.Text = fullText:sub(1, i)
             -- Scale up effect on each character
-            TweenService:Create(tag, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextSize = 96}):Play()
+            TweenService:Create(tag, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextSize = 90}):Play()
             task.wait(0.05)
-            TweenService:Create(tag, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextSize = 90}):Play()
+            TweenService:Create(tag, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextSize = 84}):Play()
             task.wait(0.12)
         end
 
-        -- Show underline with animation
+   
+        -- Show underline with animation (GREEN - slides in from left)
         underline.BackgroundTransparency = 0
-        local textWidth = 380
-        TweenService:Create(underline, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        underline.Size = UDim2.new(0, 0, 0, 3)
+        underline.Position = UDim2.new(0.5, -200, 0.5, 60)
+        local textWidth = 400
+        TweenService:Create(underline, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, textWidth, 0, 3),
             Position = UDim2.new(0.5, -textWidth/2, 0.5, 60)
         }):Play()
@@ -153,7 +156,6 @@ if _showIntro then do
         TweenService:Create(sub, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
         TweenService:Create(madeBy, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
         task.wait(0.6)
-
         -- Blinking animation on the full text
         local blink = 0
         local blinkEnd = time() + INTRO_DURATION
@@ -218,7 +220,7 @@ local LOGO_ID = "rbxassetid://7428916459"
 task.spawn(function() pcall(function() ContentProvider:PreloadAsync({LOGO_ID}) end) end)
 
 local _isfile   = isfile   or (syn and syn.isfile)   or (getgenv and getgenv().isfile)   or function() return false end
-local _readfile = readfile  or (syn and syn.readfile)  or (getgenv and getgenv().readfile)  or function() return nil  end
+local _readfile = readfile  or (syn and syn.readfile)  or (syn and syn.readfile)  or (getgenv and getgenv().readfile)  or function() return nil  end
 local _writefile= writefile or (syn and syn.writefile) or (getgenv and getgenv().writefile) or function() end
 local getconnections = getconnections or get_signal_cons or getconnects or (syn and syn.get_signal_cons)
 
@@ -228,7 +230,7 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 local ragTimerActive = false
 
 -- ============================================================
--- STEAL TRACKER / PROGRESS BAR (From Zyriel Duels)
+-- STEAL TRACKER / PROGRESS BAR
 -- ============================================================
 local STEAL_TRACKER_COLORS = {
     Border = Color3.fromRGB(255, 255, 255),
@@ -257,7 +259,7 @@ local function createStealTrackerUI()
 
     StealTracker.barContainer = Instance.new("Frame")
     StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)  -- Increased height for percentage
-    StealTracker.barContainer.Position = UDim2.new(0.5, -110, 0.08, 0)
+    StealTracker.barContainer.Position = UDim2.new(0.5, -110, 0.13, 0)
     StealTracker.barContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     StealTracker.barContainer.BackgroundTransparency = 0.15
     StealTracker.barContainer.BorderSizePixel = 0
@@ -520,8 +522,8 @@ Players.PlayerRemoving:Connect(removeESP)
 -- ============================================================
 -- DROP BR CONSTANTS
 -- ============================================================
-local DROP_ASCEND_DURATION = 0.2
-local DROP_ASCEND_SPEED    = 150
+local DROP_ASCEND_DURATION = 0.22
+local DROP_ASCEND_SPEED    = 160
 
 -- ============================================================
 -- BAT NAMES LIST
@@ -578,6 +580,8 @@ local State = {
     _prevCarry=30, _prevSpeed=false,
     autoTpDownEnabled=false, autoTpDownY=20,
     guiScale=1.0,
+    -- TRYARD ANIMATION STATE
+    tryardAnimEnabled=false,
 }
 
 local Keys = {
@@ -644,6 +648,158 @@ local unwalkAnimateRef = nil
 local optimizerDescConn = nil
 local setAutoTpDown
 local uiScaleObj
+
+-- ============================================================
+-- TRYARD ANIMATION PACK - FULL IMPLEMENTATION
+-- ============================================================
+
+local TryardAnims = {
+    idle1 = "rbxassetid://133806214992291",
+    idle2 = "rbxassetid://94970088341563",
+    walk  = "rbxassetid://707897309",
+    run   = "rbxassetid://707861613",
+    jump  = "rbxassetid://116936326516985",
+    fall  = "rbxassetid://116936326516985",
+    climb = "rbxassetid://116936326516985",
+    swim  = "rbxassetid://116936326516985",
+    swimidle = "rbxassetid://116936326516985",
+}
+
+-- Preload animations
+task.spawn(function()
+    pcall(function() 
+        ContentProvider:PreloadAsync({
+            TryardAnims.idle1, TryardAnims.idle2, TryardAnims.walk, TryardAnims.run,
+            TryardAnims.jump, TryardAnims.fall, TryardAnims.climb, TryardAnims.swim, TryardAnims.swimidle,
+        }) 
+    end)
+end)
+
+local tryardHeartbeatConn = nil
+local originalTryardAnims = nil
+
+-- Check if an animation ID is from the Tryard pack
+local function isTryardPackAnim(id) 
+    for _,v in pairs(TryardAnims) do 
+        if v == id then return true end 
+    end 
+    return false 
+end
+
+-- Save original animations before replacing them
+local function saveOriginalTryardAnims(char)
+    local animate = char:FindFirstChild("Animate")
+    if not animate then return end
+    
+    local function g(obj) 
+        return obj and obj.AnimationId or nil 
+    end
+    
+    local ids = {
+        idle1 = g(animate.idle and animate.idle.Animation1),
+        idle2 = g(animate.idle and animate.idle.Animation2),
+        walk  = g(animate.walk and animate.walk.WalkAnim),
+        run   = g(animate.run  and animate.run.RunAnim),
+        jump  = g(animate.jump and animate.jump.JumpAnim),
+        fall  = g(animate.fall and animate.fall.FallAnim),
+        climb = g(animate.climb and animate.climb.ClimbAnim),
+        swim  = g(animate.swim and animate.swim.Swim),
+        swimidle = g(animate.swimidle and animate.swimidle.SwimIdle),
+    }
+    
+    -- Only save if not already using Tryard animations
+    if not isTryardPackAnim(ids.walk) then 
+        originalTryardAnims = ids 
+    end
+end
+
+-- Apply the Tryard animation pack to a character
+local function applyTryardAnimPack(char)
+    local animate = char:FindFirstChild("Animate")
+    if not animate then return end
+    
+    local function s(obj, id) 
+        if obj then obj.AnimationId = id end 
+    end
+    
+    s(animate.idle and animate.idle.Animation1, TryardAnims.idle1)
+    s(animate.idle and animate.idle.Animation2, TryardAnims.idle2)
+    s(animate.walk and animate.walk.WalkAnim, TryardAnims.walk)
+    s(animate.run  and animate.run.RunAnim,   TryardAnims.run)
+    s(animate.jump and animate.jump.JumpAnim, TryardAnims.jump)
+    s(animate.fall and animate.fall.FallAnim, TryardAnims.fall)
+    s(animate.climb and animate.climb.ClimbAnim, TryardAnims.climb)
+    s(animate.swim and animate.swim.Swim, TryardAnims.swim)
+    s(animate.swimidle and animate.swimidle.SwimIdle, TryardAnims.swimidle)
+end
+
+-- Stop Tryard animations and restore originals
+local function stopTryardAnim()
+    if tryardHeartbeatConn then 
+        tryardHeartbeatConn:Disconnect() 
+        tryardHeartbeatConn = nil 
+    end
+    
+    if originalTryardAnims and LP.Character then
+        local animate = LP.Character:FindFirstChild("Animate")
+        if animate then
+            local function s(obj, id) 
+                if obj then obj.AnimationId = id end 
+            end
+            
+            s(animate.idle and animate.idle.Animation1, originalTryardAnims.idle1)
+            s(animate.idle and animate.idle.Animation2, originalTryardAnims.idle2)
+            s(animate.walk and animate.walk.WalkAnim, originalTryardAnims.walk)
+            s(animate.run  and animate.run.RunAnim,   originalTryardAnims.run)
+            s(animate.jump and animate.jump.JumpAnim, originalTryardAnims.jump)
+            s(animate.fall and animate.fall.FallAnim, originalTryardAnims.fall)
+            s(animate.climb and animate.climb.ClimbAnim, originalTryardAnims.climb)
+            s(animate.swim and animate.swim.Swim, originalTryardAnims.swim)
+            s(animate.swimidle and animate.swimidle.SwimIdle, originalTryardAnims.swimidle)
+        end
+    end
+end
+
+-- Start Tryard animations
+local function startTryardAnim()
+    if tryardHeartbeatConn then 
+        tryardHeartbeatConn:Disconnect() 
+    end
+    
+    local char = LP.Character
+    if char then
+        saveOriginalTryardAnims(char)
+        applyTryardAnimPack(char)
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            -- Stop all currently playing animations
+            for _, track in ipairs(hum:GetPlayingAnimationTracks()) do 
+                track:Stop(0) 
+            end
+            -- Force running state to trigger new animations
+            hum:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end
+    
+    -- Keep animations applied on every heartbeat
+    tryardHeartbeatConn = RunService.Heartbeat:Connect(function()
+        if not State.tryardAnimEnabled then return end
+        local c = LP.Character
+        if c then 
+            applyTryardAnimPack(c) 
+        end
+    end)
+end
+
+-- Auto-apply when character respawns
+LP.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    if State.tryardAnimEnabled and tryardHeartbeatConn then
+        saveOriginalTryardAnims(char)
+        applyTryardAnimPack(char)
+    end
+end)
 
 -- ============================================================
 -- THEME COLORS FOR GUI (BLACK & WHITE)
@@ -1375,6 +1531,23 @@ setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
 end)
 makeInputRow("Y Trigger", State.autoTpDownY, function(n)
     State.autoTpDownY = n
+    pcall(saveConfig)
+end)
+
+makeGap(8)
+
+-- ============================================================
+-- TRYARD ANIMATION TOGGLE
+-- ============================================================
+makeSectionHeader("Animations")
+makeGap(2)
+local tryardSetter = makeToggleRow("Tryard Animation Pack", State.tryardAnimEnabled, function(on)
+    State.tryardAnimEnabled = on
+    if on then 
+        startTryardAnim() 
+    else 
+        stopTryardAnim() 
+    end
     pcall(saveConfig)
 end)
 
@@ -2396,6 +2569,7 @@ saveConfig = function()
     data.autoTpDown=State.autoTpDownEnabled
     data.autoTpDownY=State.autoTpDownY
     data.guiScale=State.guiScale or 1.0
+    data.tryardAnimEnabled=State.tryardAnimEnabled  -- Save tryard state
     for k, v in pairs(Keys) do data["KEY_"..k] = v.Name end
     
     for _, def in ipairs(stackDefs) do
@@ -2442,8 +2616,7 @@ loadConfig = function()
     if cfg.batCounter~=nil    and setBatCounter    then State.batCounterEnabled=cfg.batCounter;       setBatCounter(cfg.batCounter);   if cfg.batCounter then startBatCounter() else stopBatCounter() end end
     if cfg.unwalk~=nil        and setUnwalkToggle  then
         State.unwalkEnabled=cfg.unwalk; setUnwalkToggle(cfg.unwalk)
-        if cfg.unwalk then doStartUnwalk() else doStopUnwalk() end
-    end
+        if cfg.unwalk then doStartUnwalk() else doStopUnwalk() end    end
     if cfg.autoSteal~=nil     and setInstaGrab     then
         Steal.AutoStealEnabled=cfg.autoSteal; setInstaGrab(cfg.autoSteal)
         if cfg.autoSteal then pcall(startAutoSteal) else stopAutoSteal() end
@@ -2456,6 +2629,15 @@ loadConfig = function()
     if cfg.guiScale then 
         State.guiScale = math.clamp(cfg.guiScale, 0.5, 1.5)
         if uiScaleObj then uiScaleObj.Scale = State.guiScale end
+    end
+    if cfg.tryardAnimEnabled ~= nil then
+        State.tryardAnimEnabled = cfg.tryardAnimEnabled
+        if tryardSetter then pcall(tryardSetter, State.tryardAnimEnabled) end
+        if State.tryardAnimEnabled then 
+            startTryardAnim() 
+        else 
+            stopTryardAnim() 
+        end
     end
     if cfg.stackHidden then
         State.stackButtonsHidden=true
@@ -2589,6 +2771,13 @@ local function setupChar(char)
     if State.medusaCounterEnabled then setupMedusaCounter(char) end
     if State.batAimbotToggled then stopAimbot(); task.wait(0.2); startAimbot() end
     if State.batCounterEnabled then task.wait(0.3); startBatCounter() end
+    
+    -- Apply Tryard animations on respawn
+    if State.tryardAnimEnabled then 
+        task.wait(0.5)
+        saveOriginalTryardAnims(char)
+        applyTryardAnimPack(char)
+    end
 end
 
 LP.CharacterAdded:Connect(setupChar)
@@ -2633,7 +2822,7 @@ end)
 -- Toggle state
 State.infJumpEnabled = false  -- Set to true to enable
 
--- The actual infinite jump logic (from your script)
+-- The actual infinite jump logic
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
     local c = LP.Character
