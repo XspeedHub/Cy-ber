@@ -230,13 +230,14 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 local ragTimerActive = false
 
 -- ============================================================
--- STEAL TRACKER / PROGRESS BAR (IMPROVED - GREEN DUELS STYLE)
+-- STEAL TRACKER / PROGRESS BAR (PERMANENTLY VISIBLE)
 -- ============================================================
 local STEAL_TRACKER_COLORS = {
     Border = Color3.fromRGB(255, 255, 255),
-    Progress = Color3.fromRGB(200, 200, 200),
+    Progress = Color3.fromRGB(255, 255, 255),
     Background = Color3.fromRGB(20, 20, 30),
     Text = Color3.fromRGB(255, 255, 255),
+    ProgressBg = Color3.fromRGB(10, 10, 15),
 }
 
 local StealTracker = {
@@ -248,6 +249,13 @@ local StealTracker = {
     progressConn = nil,
     isStealing = false,
     stealDuration = 0.2,
+    -- FPS & Ping
+    fpsLabel = nil,
+    pingLabel = nil,
+    fpsValue = 0,
+    pingValue = 0,
+    -- Always visible flag
+    alwaysVisible = true,
 }
 
 local function createStealTrackerUI()
@@ -259,15 +267,15 @@ local function createStealTrackerUI()
     StealTracker.screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     StealTracker.screenGui.Parent = LP:WaitForChild("PlayerGui")
 
-    -- Main container
+    -- Main container - ALWAYS VISIBLE
     StealTracker.barContainer = Instance.new("Frame")
-    StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)
-    StealTracker.barContainer.Position = UDim2.new(0.5, -110, 0.13, 0)
+    StealTracker.barContainer.Size = UDim2.new(0, 320, 0, 38)
+    StealTracker.barContainer.Position = UDim2.new(0.5, -160, 0.13, 0)
     StealTracker.barContainer.BackgroundColor3 = STEAL_TRACKER_COLORS.Background
     StealTracker.barContainer.BackgroundTransparency = 0.15
     StealTracker.barContainer.BorderSizePixel = 0
     StealTracker.barContainer.Parent = StealTracker.screenGui
-    StealTracker.barContainer.Visible = false
+    StealTracker.barContainer.Visible = true  -- ALWAYS VISIBLE
 
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 14)
@@ -279,25 +287,66 @@ local function createStealTrackerUI()
     containerStroke.Transparency = 0.7
     containerStroke.Parent = StealTracker.barContainer
 
-    -- Progress bar background
-    local barBackground = Instance.new("Frame")
-    barBackground.Size = UDim2.new(1, -10, 0.65, -6)
-    barBackground.Position = UDim2.new(0, 5, 0.35, 0)
-    barBackground.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    -- ============================================================
+    -- LEFT SIDE: FPS & PING TRACKER
+    -- ============================================================
+    local infoLeft = Instance.new("Frame", StealTracker.barContainer)
+    infoLeft.Size = UDim2.new(0, 90, 1, 0)
+    infoLeft.Position = UDim2.new(0, 6, 0, 0)
+    infoLeft.BackgroundTransparency = 1
+    infoLeft.BorderSizePixel = 0
+
+    -- FPS Label
+    StealTracker.fpsLabel = Instance.new("TextLabel", infoLeft)
+    StealTracker.fpsLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    StealTracker.fpsLabel.Position = UDim2.new(0, 0, 0, 0)
+    StealTracker.fpsLabel.BackgroundTransparency = 1
+    StealTracker.fpsLabel.Text = "FPS: 0"
+    StealTracker.fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StealTracker.fpsLabel.TextSize = 10
+    StealTracker.fpsLabel.Font = Enum.Font.GothamBold
+    StealTracker.fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StealTracker.fpsLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    -- Ping Label
+    StealTracker.pingLabel = Instance.new("TextLabel", infoLeft)
+    StealTracker.pingLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    StealTracker.pingLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    StealTracker.pingLabel.BackgroundTransparency = 1
+    StealTracker.pingLabel.Text = "PING: 0ms"
+    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    StealTracker.pingLabel.TextSize = 10
+    StealTracker.pingLabel.Font = Enum.Font.GothamBold
+    StealTracker.pingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StealTracker.pingLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    -- Divider
+    local divider = Instance.new("Frame", StealTracker.barContainer)
+    divider.Size = UDim2.new(0, 1, 0.7, 0)
+    divider.Position = UDim2.new(0, 100, 0.15, 0)
+    divider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    divider.BackgroundTransparency = 0.5
+    divider.BorderSizePixel = 0
+
+    -- ============================================================
+    -- CENTER: Progress Bar
+    -- ============================================================
+    local barBackground = Instance.new("Frame", StealTracker.barContainer)
+    barBackground.Size = UDim2.new(1, -110, 0.65, -6)
+    barBackground.Position = UDim2.new(0, 108, 0.35, 0)
+    barBackground.BackgroundColor3 = STEAL_TRACKER_COLORS.ProgressBg
     barBackground.BackgroundTransparency = 0.3
     barBackground.BorderSizePixel = 0
-    barBackground.Parent = StealTracker.barContainer
 
     local barBgCorner = Instance.new("UICorner")
     barBgCorner.CornerRadius = UDim.new(0, 10)
     barBgCorner.Parent = barBackground
 
     -- Progress fill
-    StealTracker.progressBar = Instance.new("Frame")
+    StealTracker.progressBar = Instance.new("Frame", barBackground)
     StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
     StealTracker.progressBar.BackgroundColor3 = STEAL_TRACKER_COLORS.Progress
     StealTracker.progressBar.BorderSizePixel = 0
-    StealTracker.progressBar.Parent = barBackground
 
     local barCorner = Instance.new("UICorner")
     barCorner.CornerRadius = UDim.new(0, 10)
@@ -312,29 +361,29 @@ local function createStealTrackerUI()
     })
     progressGrad.Rotation = 90
 
-    -- Status label (STEALING / READY)
-    StealTracker.statusLabel = Instance.new("TextLabel")
-    StealTracker.statusLabel.Size = UDim2.new(0.5, -8, 0.3, 0)
-    StealTracker.statusLabel.Position = UDim2.new(0, 8, 0.02, 0)
+    -- Status label (STEALING / READY / IDLE)
+    StealTracker.statusLabel = Instance.new("TextLabel", StealTracker.barContainer)
+    StealTracker.statusLabel.Size = UDim2.new(0, 50, 0.3, 0)
+    StealTracker.statusLabel.Position = UDim2.new(0, 108, 0.02, 0)
     StealTracker.statusLabel.BackgroundTransparency = 1
-    StealTracker.statusLabel.Text = "READY"
-    StealTracker.statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    StealTracker.statusLabel.Text = "IDLE"
+    StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     StealTracker.statusLabel.TextSize = 10
     StealTracker.statusLabel.Font = Enum.Font.GothamBold
     StealTracker.statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-    StealTracker.statusLabel.Parent = StealTracker.barContainer
+    StealTracker.statusLabel.ZIndex = 5
 
     -- Percentage label
-    StealTracker.percentLabel = Instance.new("TextLabel")
-    StealTracker.percentLabel.Size = UDim2.new(0.5, -8, 0.3, 0)
-    StealTracker.percentLabel.Position = UDim2.new(0.5, 0, 0.02, 0)
+    StealTracker.percentLabel = Instance.new("TextLabel", StealTracker.barContainer)
+    StealTracker.percentLabel.Size = UDim2.new(0, 45, 0.3, 0)
+    StealTracker.percentLabel.Position = UDim2.new(1, -55, 0.02, 0)
     StealTracker.percentLabel.BackgroundTransparency = 1
     StealTracker.percentLabel.Text = "0%"
-    StealTracker.percentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     StealTracker.percentLabel.TextSize = 10
     StealTracker.percentLabel.Font = Enum.Font.GothamBold
     StealTracker.percentLabel.TextXAlignment = Enum.TextXAlignment.Right
-    StealTracker.percentLabel.Parent = StealTracker.barContainer
+    StealTracker.percentLabel.ZIndex = 5
 
     -- Gradient for percentage label
     local pctGrad = Instance.new("UIGradient", StealTracker.percentLabel)
@@ -346,6 +395,53 @@ local function createStealTrackerUI()
     pctGrad.Rotation = 180
 end
 
+-- FPS & Ping update loop
+local frameCount = 0
+local lastFpsUpdate = tick()
+
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            -- Update FPS
+            local now = tick()
+            frameCount = frameCount + 1
+            if now - lastFpsUpdate >= 1 then
+                StealTracker.fpsValue = math.floor(frameCount / (now - lastFpsUpdate))
+                frameCount = 0
+                lastFpsUpdate = now
+            end
+            if StealTracker.fpsLabel then
+                StealTracker.fpsLabel.Text = "FPS: " .. StealTracker.fpsValue
+            end
+
+            -- Update Ping
+            local ping = 0
+            pcall(function()
+                local netStats = Stats:FindFirstChild("Network")
+                if netStats then
+                    local sci = netStats:FindFirstChild("ServerStatsItem")
+                    if sci then
+                        local dp = sci:FindFirstChild("Data Ping")
+                        if dp then ping = math.floor(dp:GetValue() or 0) end
+                    end
+                end
+            end)
+            StealTracker.pingValue = ping
+            if StealTracker.pingLabel then
+                StealTracker.pingLabel.Text = "PING: " .. ping .. "ms"
+                -- Color based on ping
+                if ping < 50 then
+                    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                elseif ping < 150 then
+                    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+                else
+                    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                end
+            end
+        end)
+    end
+end)
+
 local function updateStealProgress()
     if not StealTracker.isStealing then return end
     local startTime = tick()
@@ -353,12 +449,14 @@ local function updateStealProgress()
 
     if StealTracker.statusLabel then
         StealTracker.statusLabel.Text = "STEALING"
+        StealTracker.statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     end
     if StealTracker.progressBar then
         StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
     end
     if StealTracker.percentLabel then
         StealTracker.percentLabel.Text = "0%"
+        StealTracker.percentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
 
     if StealTracker.progressConn then
@@ -390,10 +488,26 @@ local function updateStealProgress()
             StealTracker.progressConn = nil
             if StealTracker.statusLabel then
                 StealTracker.statusLabel.Text = "READY"
+                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
             end
             if StealTracker.percentLabel then
                 StealTracker.percentLabel.Text = "100%"
+                StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
             end
+            -- Reset after a moment
+            task.delay(1, function()
+                if StealTracker.statusLabel then
+                    StealTracker.statusLabel.Text = "IDLE"
+                    StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+                end
+                if StealTracker.percentLabel then
+                    StealTracker.percentLabel.Text = "0%"
+                    StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+                end
+                if StealTracker.progressBar then
+                    StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
+                end
+            end)
         end
     end)
 end
@@ -406,15 +520,6 @@ local function showStealProgress(duration)
     StealTracker.stealDuration = duration or 0.2
     StealTracker.isStealing = true
     
-    if StealTracker.barContainer then
-        StealTracker.barContainer.Visible = true
-        -- Pulse animation on show
-        StealTracker.barContainer.Size = UDim2.new(0, 180, 0, 32)
-        TweenService:Create(StealTracker.barContainer, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 220, 0, 38)
-        }):Play()
-    end
-    
     updateStealProgress()
 end
 
@@ -426,26 +531,18 @@ local function hideStealProgress()
         StealTracker.progressConn = nil
     end
     
-    if StealTracker.barContainer then
-        -- Shrink animation on hide
-        TweenService:Create(StealTracker.barContainer, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 180, 0, 32)
-        }):Play()
-        task.wait(0.15)
-        StealTracker.barContainer.Visible = false
-        StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)
-    end
-    
     if StealTracker.progressBar then
         StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
     end
     
     if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "READY"
+        StealTracker.statusLabel.Text = "IDLE"
+        StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
     
     if StealTracker.percentLabel then
         StealTracker.percentLabel.Text = "0%"
+        StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
 end
 
