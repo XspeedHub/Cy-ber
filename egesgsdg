@@ -28,7 +28,7 @@ if _showIntro then do
 
     local SONG_ID        = "rbxassetid://119414415681261"
     local SONG_VOL       = 0.7
-    local INTRO_DURATION = 5
+    local INTRO_DURATION = 3
     local BLINK_INTERVAL = 0.15
 
     local blur = Instance.new("BlurEffect")
@@ -230,11 +230,13 @@ local getconnections = getconnections or get_signal_cons or getconnects or (syn 
 local ragTimerActive = false
 
 -- ============================================================
--- STEAL TRACKER / PROGRESS BAR
+-- STEAL TRACKER / PROGRESS BAR (IMPROVED - GREEN DUELS STYLE)
 -- ============================================================
 local STEAL_TRACKER_COLORS = {
     Border = Color3.fromRGB(255, 255, 255),
     Progress = Color3.fromRGB(200, 200, 200),
+    Background = Color3.fromRGB(20, 20, 30),
+    Text = Color3.fromRGB(255, 255, 255),
 }
 
 local StealTracker = {
@@ -242,7 +244,7 @@ local StealTracker = {
     barContainer = nil,
     progressBar = nil,
     statusLabel = nil,
-    percentLabel = nil,  -- NEW: percentage label
+    percentLabel = nil,
     progressConn = nil,
     isStealing = false,
     stealDuration = 0.2,
@@ -257,10 +259,11 @@ local function createStealTrackerUI()
     StealTracker.screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     StealTracker.screenGui.Parent = LP:WaitForChild("PlayerGui")
 
+    -- Main container
     StealTracker.barContainer = Instance.new("Frame")
-    StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)  -- Increased height for percentage
+    StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)
     StealTracker.barContainer.Position = UDim2.new(0.5, -110, 0.13, 0)
-    StealTracker.barContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    StealTracker.barContainer.BackgroundColor3 = STEAL_TRACKER_COLORS.Background
     StealTracker.barContainer.BackgroundTransparency = 0.15
     StealTracker.barContainer.BorderSizePixel = 0
     StealTracker.barContainer.Parent = StealTracker.screenGui
@@ -276,6 +279,7 @@ local function createStealTrackerUI()
     containerStroke.Transparency = 0.7
     containerStroke.Parent = StealTracker.barContainer
 
+    -- Progress bar background
     local barBackground = Instance.new("Frame")
     barBackground.Size = UDim2.new(1, -10, 0.65, -6)
     barBackground.Position = UDim2.new(0, 5, 0.35, 0)
@@ -288,6 +292,7 @@ local function createStealTrackerUI()
     barBgCorner.CornerRadius = UDim.new(0, 10)
     barBgCorner.Parent = barBackground
 
+    -- Progress fill
     StealTracker.progressBar = Instance.new("Frame")
     StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
     StealTracker.progressBar.BackgroundColor3 = STEAL_TRACKER_COLORS.Progress
@@ -298,13 +303,14 @@ local function createStealTrackerUI()
     barCorner.CornerRadius = UDim.new(0, 10)
     barCorner.Parent = StealTracker.progressBar
 
-    -- Add gradient to progress bar for black & white theme
+    -- Gradient for progress bar (black & white)
     local progressGrad = Instance.new("UIGradient", StealTracker.progressBar)
     progressGrad.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),
         ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),
     })
+    progressGrad.Rotation = 90
 
     -- Status label (STEALING / READY)
     StealTracker.statusLabel = Instance.new("TextLabel")
@@ -318,7 +324,7 @@ local function createStealTrackerUI()
     StealTracker.statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     StealTracker.statusLabel.Parent = StealTracker.barContainer
 
-    -- Percentage label (NEW)
+    -- Percentage label
     StealTracker.percentLabel = Instance.new("TextLabel")
     StealTracker.percentLabel.Size = UDim2.new(0.5, -8, 0.3, 0)
     StealTracker.percentLabel.Position = UDim2.new(0.5, 0, 0.02, 0)
@@ -330,13 +336,14 @@ local function createStealTrackerUI()
     StealTracker.percentLabel.TextXAlignment = Enum.TextXAlignment.Right
     StealTracker.percentLabel.Parent = StealTracker.barContainer
 
-    -- Add gradient to percentage label
+    -- Gradient for percentage label
     local pctGrad = Instance.new("UIGradient", StealTracker.percentLabel)
     pctGrad.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0,    Color3.fromRGB(0, 0, 0)),
         ColorSequenceKeypoint.new(0.5,  Color3.fromRGB(255, 255, 255)),
         ColorSequenceKeypoint.new(1,    Color3.fromRGB(0, 0, 0)),
     })
+    pctGrad.Rotation = 180
 end
 
 local function updateStealProgress()
@@ -367,12 +374,12 @@ local function updateStealProgress()
         local elapsed = tick() - startTime
         local progress = math.min(elapsed / duration, 1)
         
-        -- Update progress bar
+        -- Update progress bar with smooth tween
         if StealTracker.progressBar then
             StealTracker.progressBar.Size = UDim2.new(progress, 0, 1, 0)
         end
         
-        -- Update percentage label (1-100)
+        -- Update percentage label
         if StealTracker.percentLabel then
             local percent = math.floor(progress * 100)
             StealTracker.percentLabel.Text = percent .. "%"
@@ -401,6 +408,11 @@ local function showStealProgress(duration)
     
     if StealTracker.barContainer then
         StealTracker.barContainer.Visible = true
+        -- Pulse animation on show
+        StealTracker.barContainer.Size = UDim2.new(0, 180, 0, 32)
+        TweenService:Create(StealTracker.barContainer, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 220, 0, 38)
+        }):Play()
     end
     
     updateStealProgress()
@@ -415,7 +427,13 @@ local function hideStealProgress()
     end
     
     if StealTracker.barContainer then
+        -- Shrink animation on hide
+        TweenService:Create(StealTracker.barContainer, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 180, 0, 32)
+        }):Play()
+        task.wait(0.15)
         StealTracker.barContainer.Visible = false
+        StealTracker.barContainer.Size = UDim2.new(0, 220, 0, 38)
     end
     
     if StealTracker.progressBar then
@@ -983,7 +1001,7 @@ end
 -- ============================================================
 -- MAIN WINDOW
 -- ============================================================
-local WIN_W = 265; local WIN_H = 350; local TITLE_H = 52
+local WIN_W = 270; local WIN_H = 360; local TITLE_H = 52
 
 local mainOuter = Instance.new("Frame", gui)
 mainOuter.Name = "MainOuter"
@@ -999,7 +1017,7 @@ mainScale.Scale = 1
 
 local bgImg = Instance.new("ImageLabel", mainOuter)
 bgImg.Size = UDim2.new(1,0,1,0); bgImg.BackgroundTransparency = 1
-bgImg.Image = "rbxassetid://110401909889285"; bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.Image = "rbxassetid://137118113233165"; bgImg.ScaleType = Enum.ScaleType.Crop
 bgImg.ImageTransparency = 0; bgImg.ZIndex = 0; mkCorner(bgImg, 14)
 
 local bgOverlay = Instance.new("Frame", mainOuter)
@@ -1033,7 +1051,7 @@ logoBox.Size=UDim2.new(0,26,0,26); logoBox.Position=UDim2.new(0,8,0,6)
 logoBox.BackgroundColor3=THEME.OBSIDIAN_LIGHT
 logoBox.BackgroundTransparency=0.3
 logoBox.BorderSizePixel=0; logoBox.ZIndex=6
-logoBox.Image="rbxassetid://105132226968722"
+logoBox.Image="rbxassetid://86807614801226"
 logoBox.ScaleType=Enum.ScaleType.Fit
 mkCorner(logoBox,8)
 mkYogaBorder(logoBox, 1.2, 2.2, 130)
@@ -2817,11 +2835,6 @@ end)
 -- ============================================================
 -- INF JUMP
 -- ============================================================
--- Infinite Jump Implementation
-
--- Toggle state
-State.infJumpEnabled = false  -- Set to true to enable
-
 -- The actual infinite jump logic
 UIS.JumpRequest:Connect(function()
     if not State.infJumpEnabled then return end
@@ -2829,7 +2842,7 @@ UIS.JumpRequest:Connect(function()
     if not c then return end
     local root = c:FindFirstChild("HumanoidRootPart")
     if root then
-        root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 53, root.AssemblyLinearVelocity.Z)
+        root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 55, root.AssemblyLinearVelocity.Z)
     end
 end)
 
@@ -2847,7 +2860,7 @@ RunService.Heartbeat:Connect(function()
                      UIS:IsKeyDown(Enum.KeyCode.ButtonA) or 
                      (hum2.Jump == true)
     
-    if jumpHeld and root.Velocity.Y < 30 then
+    if jumpHeld and root.Velocity.Y < 100 then
         root.Velocity = Vector3.new(root.Velocity.X, 55, root.Velocity.Z)
     end
     
@@ -2856,7 +2869,6 @@ RunService.Heartbeat:Connect(function()
         root.Velocity = Vector3.new(root.Velocity.X, -120, root.Velocity.Z)
     end
 end)
-
 -- ============================================================
 -- SPEED 
 -- ============================================================
