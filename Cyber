@@ -2,10 +2,6 @@
 --  NYXORA HUB  ─  INTRO SEQUENCE (toggleable)
 --  Blur on world + blinking NYXORA tag + lock-in song, then clears.
 -- ═══════════════════════════════════════════════════════════
-
--- Wait for game to fully load before anything else
-repeat task.wait() until game:IsLoaded()
-
 local _showIntro = true  -- default ON
 do
     local function tryRead(fname)
@@ -20,6 +16,9 @@ do
     end
     tryRead("NyxoraHub_Config.json")
 end
+
+-- Wait for game to fully load before continuing
+repeat task.wait() until game:IsLoaded()
 
 if _showIntro then do
     local Players      = game:GetService("Players")
