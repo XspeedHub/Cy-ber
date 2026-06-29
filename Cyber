@@ -2,6 +2,10 @@
 --  NYXORA HUB  ─  INTRO SEQUENCE (toggleable)
 --  Blur on world + blinking NYXORA tag + lock-in song, then clears.
 -- ═══════════════════════════════════════════════════════════
+
+-- Wait for game to fully load before anything else
+repeat task.wait() until game:IsLoaded()
+
 local _showIntro = true  -- default ON
 do
     local function tryRead(fname)
@@ -16,9 +20,6 @@ do
     end
     tryRead("NyxoraHub_Config.json")
 end
-
--- Wait for game to fully load before continuing
-repeat task.wait() until game:IsLoaded()
 
 if _showIntro then do
     local Players      = game:GetService("Players")
@@ -234,7 +235,7 @@ local ragTimerActive = false
 -- ============================================================
 local STEAL_TRACKER_COLORS = {
     Border = Color3.fromRGB(255, 255, 255),
-    Progress = Color3.fromRGB(255, 255, 255),
+    Progress = Color3.fromRGB(200, 200, 200),
     Background = Color3.fromRGB(20, 20, 30),
     Text = Color3.fromRGB(255, 255, 255),
     ProgressBg = Color3.fromRGB(10, 10, 15),
@@ -288,7 +289,7 @@ local function createStealTrackerUI()
     containerStroke.Parent = StealTracker.barContainer
 
     -- ============================================================
-    -- LEFT SIDE: FPS & PING TRACKER
+    -- LEFT SIDE: FPS & PING TRACKER (From Green Duels V2)
     -- ============================================================
     local infoLeft = Instance.new("Frame", StealTracker.barContainer)
     infoLeft.Size = UDim2.new(0, 90, 1, 0)
@@ -302,7 +303,7 @@ local function createStealTrackerUI()
     StealTracker.fpsLabel.Position = UDim2.new(0, 0, 0, 0)
     StealTracker.fpsLabel.BackgroundTransparency = 1
     StealTracker.fpsLabel.Text = "FPS: 0"
-    StealTracker.fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StealTracker.fpsLabel.TextColor3 = Color3.fromRGB(245, 255, 248)
     StealTracker.fpsLabel.TextSize = 10
     StealTracker.fpsLabel.Font = Enum.Font.GothamBold
     StealTracker.fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -314,7 +315,7 @@ local function createStealTrackerUI()
     StealTracker.pingLabel.Position = UDim2.new(0, 0, 0.5, 0)
     StealTracker.pingLabel.BackgroundTransparency = 1
     StealTracker.pingLabel.Text = "PING: 0ms"
-    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    StealTracker.pingLabel.TextColor3 = Color3.fromRGB(245, 255, 248)
     StealTracker.pingLabel.TextSize = 10
     StealTracker.pingLabel.Font = Enum.Font.GothamBold
     StealTracker.pingLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -366,7 +367,7 @@ local function createStealTrackerUI()
     StealTracker.statusLabel.Size = UDim2.new(0, 50, 0.3, 0)
     StealTracker.statusLabel.Position = UDim2.new(0, 108, 0.02, 0)
     StealTracker.statusLabel.BackgroundTransparency = 1
-    StealTracker.statusLabel.Text = "IDLE"
+    StealTracker.statusLabel.Text = "NOT STEALING"
     StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     StealTracker.statusLabel.TextSize = 10
     StealTracker.statusLabel.Font = Enum.Font.GothamBold
@@ -395,40 +396,47 @@ local function createStealTrackerUI()
     pctGrad.Rotation = 180
 end
 
--- FPS & Ping update loop
-local frameCount = 0
-local lastFpsUpdate = tick()
+-- ============================================================
+-- FPS COUNTER (From Green Duels V2 - More Accurate)
+-- ============================================================
+local fpsFrameCount = 0
+local fpsLastTime = tick()
 
+-- FPS update loop using RenderStepped (more accurate)
+RunService.RenderStepped:Connect(function()
+    fpsFrameCount = fpsFrameCount + 1
+    local now = tick()
+    if now - fpsLastTime >= 1 then
+        local fps = math.floor(fpsFrameCount / (now - fpsLastTime))
+        if StealTracker.fpsLabel then
+            StealTracker.fpsLabel.Text = "FPS: " .. tostring(fps)
+            StealTracker.fpsValue = fps
+        end
+        fpsFrameCount = 0
+        fpsLastTime = now
+    end
+end)
+
+-- ============================================================
+-- PING COUNTER (From Green Duels V2)
+-- ============================================================
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
-            -- Update FPS
-            local now = tick()
-            frameCount = frameCount + 1
-            if now - lastFpsUpdate >= 1 then
-                StealTracker.fpsValue = math.floor(frameCount / (now - lastFpsUpdate))
-                frameCount = 0
-                lastFpsUpdate = now
-            end
-            if StealTracker.fpsLabel then
-                StealTracker.fpsLabel.Text = "FPS: " .. StealTracker.fpsValue
-            end
-
-            -- Update Ping
             local ping = 0
-            pcall(function()
-                local netStats = Stats:FindFirstChild("Network")
-                if netStats then
-                    local sci = netStats:FindFirstChild("ServerStatsItem")
-                    if sci then
-                        local dp = sci:FindFirstChild("Data Ping")
-                        if dp then ping = math.floor(dp:GetValue() or 0) end
+            local netStats = Stats:FindFirstChild("Network")
+            if netStats then
+                local sci = netStats:FindFirstChild("ServerStatsItem")
+                if sci then
+                    local dp = sci:FindFirstChild("Data Ping")
+                    if dp then 
+                        ping = math.floor(dp:GetValue() or 0)
                     end
                 end
-            end)
-            StealTracker.pingValue = ping
+            end
             if StealTracker.pingLabel then
                 StealTracker.pingLabel.Text = "PING: " .. ping .. "ms"
+                StealTracker.pingValue = ping
                 -- Color based on ping
                 if ping < 50 then
                     StealTracker.pingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -497,7 +505,7 @@ local function updateStealProgress()
             -- Reset after a moment
             task.delay(1, function()
                 if StealTracker.statusLabel then
-                    StealTracker.statusLabel.Text = "IDLE"
+                    StealTracker.statusLabel.Text = "NOT STEALING"
                     StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
                 end
                 if StealTracker.percentLabel then
@@ -536,7 +544,7 @@ local function hideStealProgress()
     end
     
     if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "IDLE"
+        StealTracker.statusLabel.Text = "NOT STEALING"
         StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
     
@@ -706,7 +714,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=69; local BTN_H=47; local BTN_GAP=7; local COLS=2
+local BTN_W=69; local BTN_H=46; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
@@ -726,7 +734,7 @@ local function getDefaultStackPos(i)
 end
 
 local Steal = {
-    AutoStealEnabled=false, StealRadius=60, StealDuration=1.3,
+    AutoStealEnabled=false, StealRadius=63, StealDuration=1.3,
     Data={}, plotCache={}, plotCacheTime={}, cachedPrompts={}, promptCacheTime=0,
 }
 
@@ -1164,7 +1172,7 @@ titleShadow.TextTransparency=0.72
 local nyxoraHubTitle = Instance.new("TextLabel", ProfileFrame)
 nyxoraHubTitle.Size = UDim2.new(0,170,0,22); nyxoraHubTitle.Position = UDim2.new(0,41,0,4)
 nyxoraHubTitle.BackgroundTransparency = 1
-nyxoraHubTitle.Text = "NYXORA HUB"
+nyxoraHubTitle.Text = "NYXORAFR DUELS"
 nyxoraHubTitle.TextColor3 = THEME.TEXT_WHITE
 nyxoraHubTitle.Font = Enum.Font.SourceSansItalic
 nyxoraHubTitle.TextSize = 18
@@ -1591,8 +1599,14 @@ setBatCounter = makeToggleRow("Bat Counter", false, function(on)
     if on then startBatCounter() else stopBatCounter() end
     pcall(saveConfig)
 end)
-makeGap(8)
+makeGap(2)
 
+setMedusaCounter = makeToggleRow("Medusa Counter", false, function(on)
+    State.medusaCounterEnabled=on
+    if on then setupMedusaCounter(LP.Character) else stopMedusaCounter() end
+    pcall(saveConfig)
+end)
+makeGap(5)
 makeSectionHeader("Stealing")
 makeGap(2)
 setInstaGrab = makeToggleRow("Insta Grab", false, function(on)
@@ -1629,34 +1643,15 @@ setFps = makeToggleRow("FPS Boost", false, function(on)
     if on then pcall(applyFPSBoost) end
     pcall(saveConfig)
 end)
-setMedusaCounter = makeToggleRow("Medusa Counter", false, function(on)
-    State.medusaCounterEnabled=on
-    if on then setupMedusaCounter(LP.Character) else stopMedusaCounter() end
-    pcall(saveConfig)
-end)
+
 setUnwalkToggle = makeToggleRow("Unwalk", false, function(on)
     State.unwalkEnabled = on
     if on then doStartUnwalk() else doStopUnwalk() end
     pcall(saveConfig)
 end)
 
-setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
-    State.autoTpDownEnabled = on
-    pcall(saveConfig)
-end)
-makeInputRow("Y Trigger", State.autoTpDownY, function(n)
-    State.autoTpDownY = n
-    pcall(saveConfig)
-end)
-
-makeGap(8)
-
--- ============================================================
--- TRYARD ANIMATION TOGGLE
--- ============================================================
-makeSectionHeader("Animations")
 makeGap(2)
-local tryardSetter = makeToggleRow("Tryard Animation Pack", State.tryardAnimEnabled, function(on)
+local tryardSetter = makeToggleRow("Good Animation", State.tryardAnimEnabled, function(on)
     State.tryardAnimEnabled = on
     if on then 
         startTryardAnim() 
@@ -1668,6 +1663,16 @@ end)
 
 makeGap(8)
 
+setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
+    State.autoTpDownEnabled = on
+    pcall(saveConfig)
+end)
+makeInputRow("Y Trigger", State.autoTpDownY, function(n)
+    State.autoTpDownY = n
+    pcall(saveConfig)
+end)
+
+makeGap(8)
 -- ============================================================
 -- KEYBINDS SECTION
 -- ============================================================
@@ -2071,7 +2076,7 @@ do
 end
 
 -- ============================================================
--- STACK BUTTONS
+-- STACK BUTTONS 
 -- ============================================================
 for i, def in ipairs(stackDefs) do
     local btnFrame = Instance.new("Frame", gui)
@@ -2080,12 +2085,14 @@ for i, def in ipairs(stackDefs) do
     btnFrame.Position = getDefaultStackPos(i)
     btnFrame.BackgroundColor3 = C.stackBg
     btnFrame.BackgroundTransparency = 0.2
-    btnFrame.BorderSizePixel = 0.1
+    btnFrame.BorderSizePixel = 0
     btnFrame.Active = true
     btnFrame.ZIndex = 15
-    mkCorner(btnFrame, 8)
+    -- Squircle corner radius (20% of size for perfect squircle look)
+    local cornerRadius = math.min(BTN_W, BTN_H) * 0.33
+    mkCorner(btnFrame, cornerRadius)
     
-    local bStroke = mkYogaBorder(btnFrame, 1.5, 3, 150)
+    local bStroke = mkYogaBorder(btnFrame, 2, 3.5, 170)
     
     local nl = Instance.new("TextLabel", btnFrame)
     nl.Size = UDim2.new(1, -6, 1, 0)
@@ -2824,7 +2831,7 @@ local function setupChar(char)
         speedBillLbl.Size=UDim2.new(1,0,0.5,0)
         speedBillLbl.Position=UDim2.new(0,0,0,0)
         speedBillLbl.BackgroundTransparency=1
-        speedBillLbl.Text="SPEED: 0.0"
+        speedBillLbl.Text="Speed: 0.0"
         speedBillLbl.TextColor3=THEME.LIGHT_BLUE
         speedBillLbl.FontFace=Font.new("rbxasset://fonts/families/Ubuntu.json",Enum.FontWeight.Bold,Enum.FontStyle.Italic)
         speedBillLbl.TextSize=12
