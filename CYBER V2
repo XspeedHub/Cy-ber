@@ -18,7 +18,7 @@ local laggerActive = false
 local lowEndActive = false
 local isTouchEnabled = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 
-local uiWidth = isTouchEnabled and 200 or 270
+local uiWidth = isTouchEnabled and 150 or 270
 local uiHeight = isTouchEnabled and 200 or 300
 local headerHeight = isTouchEnabled and 55 or 85
 local titlePosY = isTouchEnabled and 8 or 14
@@ -253,7 +253,7 @@ mainFrame.Name = "MainFrame"
 mainFrame.BackgroundColor3 = Color3.new(1, 1, 1) -- base color (overridden by gradient)
 mainFrame.BorderSizePixel = 0
 mainFrame.Size = UDim2.new(0, uiWidth, 0, uiHeight)
-mainFrame.Position = UDim2.new(0.5, -uiWidth/2, 0.5, -uiHeight/2)
+mainFrame.Position = UDim2.new(0.92, -uiWidth/2, 0.85, -uiHeight/2)
 mainFrame.Parent = screenGui
 
 -- Black & white animated gradient
