@@ -366,7 +366,7 @@ local function createStealTrackerUI()
     StealTracker.statusLabel.Size = UDim2.new(0, 50, 0.3, 0)
     StealTracker.statusLabel.Position = UDim2.new(0, 108, 0.02, 0)
     StealTracker.statusLabel.BackgroundTransparency = 1
-    StealTracker.statusLabel.Text = "NOT STEALING"
+    StealTracker.statusLabel.Text = "NOT READY"
     StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     StealTracker.statusLabel.TextSize = 10
     StealTracker.statusLabel.Font = Enum.Font.GothamBold
@@ -455,7 +455,7 @@ local function updateStealProgress()
     local duration = StealTracker.stealDuration
 
     if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "STEALING"
+        StealTracker.statusLabel.Text = "READY"
         StealTracker.statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     end
     if StealTracker.progressBar then
@@ -504,7 +504,7 @@ local function updateStealProgress()
             -- Reset after a moment
             task.delay(1, function()
                 if StealTracker.statusLabel then
-                    StealTracker.statusLabel.Text = "NOT STEALING"
+                    StealTracker.statusLabel.Text = "NOT READY"
                     StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
                 end
                 if StealTracker.percentLabel then
@@ -543,7 +543,7 @@ local function hideStealProgress()
     end
     
     if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "NOT STEALING"
+        StealTracker.statusLabel.Text = "NOT READY"
         StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
     
@@ -642,7 +642,7 @@ end)
 Players.PlayerRemoving:Connect(removeESP)
 
 -- ============================================================
--- DROP BR CONSTANTS
+-- DROP BR CONSTANTS (Jump Drop)
 -- ============================================================
 local DROP_ASCEND_DURATION = 0.22
 local DROP_ASCEND_SPEED    = 160
@@ -713,7 +713,7 @@ local Keys = {
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
 }
 
-local BTN_W=69; local BTN_H=46; local BTN_GAP=7; local COLS=2
+local BTN_W=59; local BTN_H=55; local BTN_GAP=7; local COLS=2
 local stackDefs = {
     {key="autoLeft",   label="AUTO\nLEFT"},
     {key="autoRight",  label="AUTO\nRIGHT"},
@@ -776,12 +776,12 @@ local uiScaleObj
 -- ============================================================
 
 local TryardAnims = {
-    idle1 = "rbxassetid://133806214992291",
-    idle2 = "rbxassetid://94970088341563",
-    walk  = "rbxassetid://707897309",
-    run   = "rbxassetid://707861613",
-    jump  = "rbxassetid://116936326516985",
-    fall  = "rbxassetid://116936326516985",
+    idle1 = "rbxassetid://10921344533",
+    idle2 = "rbxassetid://10921345304",
+    walk  = "rbxassetid://10921355261",
+    run   = "rbxassetid://616163682",
+    jump  = "rbxassetid://616139451",
+    fall  = "rbxassetid://616134815",
     climb = "rbxassetid://116936326516985",
     swim  = "rbxassetid://116936326516985",
     swimidle = "rbxassetid://116936326516985",
@@ -1151,11 +1151,13 @@ _haGrad.Color=ColorSequence.new({
 })
 
 local logoBox=Instance.new("ImageLabel", ProfileFrame)
-logoBox.Size=UDim2.new(0,26,0,26); logoBox.Position=UDim2.new(0,8,0,6)
+logoBox.Size=UDim2.new(0,26,0,26)
+logoBox.Position=UDim2.new(0,8,0,6)
 logoBox.BackgroundColor3=THEME.OBSIDIAN_LIGHT
 logoBox.BackgroundTransparency=0.3
-logoBox.BorderSizePixel=0; logoBox.ZIndex=6
-logoBox.Image="rbxassetid://86807614801226"
+logoBox.BorderSizePixel=0
+logoBox.ZIndex=6
+logoBox.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LP.UserId .. "&w=150&h=150"   -- changed
 logoBox.ScaleType=Enum.ScaleType.Fit
 mkCorner(logoBox,8)
 mkYogaBorder(logoBox, 1.2, 2.2, 130)
@@ -1171,7 +1173,7 @@ titleShadow.TextTransparency=0.72
 local nyxoraHubTitle = Instance.new("TextLabel", ProfileFrame)
 nyxoraHubTitle.Size = UDim2.new(0,170,0,22); nyxoraHubTitle.Position = UDim2.new(0,41,0,4)
 nyxoraHubTitle.BackgroundTransparency = 1
-nyxoraHubTitle.Text = "NYXORAFR DUELS"
+nyxoraHubTitle.Text = "NYXORAFR"
 nyxoraHubTitle.TextColor3 = THEME.TEXT_WHITE
 nyxoraHubTitle.Font = Enum.Font.SourceSansItalic
 nyxoraHubTitle.TextSize = 18
@@ -2088,7 +2090,7 @@ for i, def in ipairs(stackDefs) do
     btnFrame.Active = true
     btnFrame.ZIndex = 15
     -- Squircle corner radius (20% of size for perfect squircle look)
-    local cornerRadius = math.min(BTN_W, BTN_H) * 0.33
+    local cornerRadius = math.min(BTN_W, BTN_H) * 0.23
     mkCorner(btnFrame, cornerRadius)
     
     local bStroke = mkYogaBorder(btnFrame, 2, 3.5, 170)
@@ -2268,7 +2270,7 @@ doTpDown = function()
 end
 
 -- ============================================================
--- DROP BRAINROT
+-- DROP BRAINROT (JUMP DROP - ASCEND + TELEPORT)
 -- ============================================================
 runDropBrainrot = function()
     if State.dropEnabled then return end
