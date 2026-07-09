@@ -26,7 +26,7 @@ if _showIntro then do
     local CoreGui      = game:GetService("CoreGui")
     local LP           = Players.LocalPlayer
 
-    local SONG_ID        = "rbxassetid://119414415681261"
+    local SONG_ID        = "rbxassetid://76650356472656"
     local SONG_VOL       = 0.7
     local INTRO_DURATION = 3
     local BLINK_INTERVAL = 0.15
