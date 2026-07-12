@@ -7,7 +7,7 @@ do
     local function tryRead(fname)
         local ok, exists = pcall(isfile, fname)     
         if not (ok and exists) then return end
-        local ok2, cfg = pcall(function()
+        local ok2, cfg = pcall(function()   
             return game:GetService("HttpService"):JSONDecode(readfile(fname))
         end)
         if ok2 and cfg and cfg.showIntro ~= nil then
@@ -258,6 +258,16 @@ local StealTracker = {
     alwaysVisible = true,
 }
 
+-- Forward-declare _StealState here so that updateStealProgress (and its
+-- Heartbeat closure defined below) captures the SAME upvalue that
+-- _executeStealAsync fills in later.  Without this, _StealState would
+-- resolve as a global (nil) inside the closure because the local is
+-- declared further down in the file.
+local _StealState = {
+    active = false, startTime = 0, phase = "idle",
+    label = "", lastResult = "", lastResultTime = 0,
+}
+
 local function createStealTrackerUI()
     if StealTracker.screenGui then return end
 
@@ -452,11 +462,11 @@ end)
 local function updateStealProgress()
     if not StealTracker.isStealing then return end
     local startTime = tick()
-    local duration = StealTracker.stealDuration
+    local duration = StealTracker.stealDuration   -- this is holdMax
 
     if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "READY"
-        StealTracker.statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+        StealTracker.statusLabel.Text = "HOLDING..."
+        StealTracker.statusLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
     end
     if StealTracker.progressBar then
         StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
@@ -470,51 +480,76 @@ local function updateStealProgress()
         StealTracker.progressConn:Disconnect()
     end
 
-    StealTracker.progressConn = RunService.Heartbeat:Connect(function()
-        if not StealTracker.isStealing then
-            if StealTracker.progressConn then StealTracker.progressConn:Disconnect() end
-            StealTracker.progressConn = nil
-            return
-        end
-        local elapsed = tick() - startTime
+    StealTracker.progressConn = RunService.Heartbeat:Connect(function(dt)
+        local elapsed  = tick() - startTime
         local progress = math.min(elapsed / duration, 1)
-        
-        -- Update progress bar with smooth tween
+        local phase    = _StealState.phase
+        local justDone = _StealState.lastResultTime > 0 and (tick()-_StealState.lastResultTime) < 1.4
+        local success  = justDone and string.find(_StealState.lastResult, "Stole") ~= nil
+
+        -- Fill color phases (semi-auto grab scheme):
+        --   holding   → silver/white
+        --   waitingRange → yellow (held fully, scanning for range)
+        --   justDone  → green (success) or red (missed)
+        local fillColor
+        if justDone then
+            fillColor = success and Color3.fromRGB(100, 255, 130) or Color3.fromRGB(255, 80, 80)
+        elseif phase == "waitingRange" then
+            fillColor = Color3.fromRGB(255, 220, 60)
+        else
+            fillColor = Color3.fromRGB(220, 220, 220)
+        end
+
         if StealTracker.progressBar then
-            StealTracker.progressBar.Size = UDim2.new(progress, 0, 1, 0)
+            -- Keep bar full once steal completes so result color is visible
+            local displayProgress = (not StealTracker.isStealing or justDone) and 1 or progress
+            StealTracker.progressBar.Size = UDim2.new(displayProgress, 0, 1, 0)
+            StealTracker.progressBar.BackgroundColor3 =
+                StealTracker.progressBar.BackgroundColor3:Lerp(fillColor, math.min((dt or 0.03)*10, 1))
         end
-        
-        -- Update percentage label
+
         if StealTracker.percentLabel then
-            local percent = math.floor(progress * 100)
-            StealTracker.percentLabel.Text = percent .. "%"
+            if not StealTracker.isStealing then
+                StealTracker.percentLabel.Text = "100%"
+            else
+                StealTracker.percentLabel.Text = math.floor(progress*100) .. "%"
+            end
         end
-        
-        if progress >= 1 then
+
+        if StealTracker.statusLabel then
+            if justDone then
+                StealTracker.statusLabel.Text = success and "STOLEN!" or "MISSED"
+                StealTracker.statusLabel.TextColor3 = success
+                    and Color3.fromRGB(100, 255, 130)
+                    or  Color3.fromRGB(255, 80, 80)
+            elseif phase == "holding" then
+                StealTracker.statusLabel.Text = "HOLDING..."
+                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+            elseif phase == "waitingRange" then
+                StealTracker.statusLabel.Text = "WAIT RANGE"
+                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(255, 220, 60)
+            else
+                StealTracker.statusLabel.Text = "NOT READY"
+                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+            end
+        end
+
+        -- Once the result has been displayed for 1.4s, clean up the bar
+        if not StealTracker.isStealing and not justDone then
             if StealTracker.progressConn then StealTracker.progressConn:Disconnect() end
             StealTracker.progressConn = nil
             if StealTracker.statusLabel then
-                StealTracker.statusLabel.Text = "READY"
-                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+                StealTracker.statusLabel.Text  = "NOT READY"
+                StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
             end
             if StealTracker.percentLabel then
-                StealTracker.percentLabel.Text = "100%"
-                StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+                StealTracker.percentLabel.Text = "0%"
+                StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
             end
-            -- Reset after a moment
-            task.delay(1, function()
-                if StealTracker.statusLabel then
-                    StealTracker.statusLabel.Text = "NOT READY"
-                    StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-                end
-                if StealTracker.percentLabel then
-                    StealTracker.percentLabel.Text = "0%"
-                    StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-                end
-                if StealTracker.progressBar then
-                    StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
-                end
-            end)
+            if StealTracker.progressBar then
+                StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
+                StealTracker.progressBar.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+            end
         end
     end)
 end
@@ -531,26 +566,10 @@ local function showStealProgress(duration)
 end
 
 local function hideStealProgress()
+    -- Signal that stealing is done; do NOT immediately wipe the bar.
+    -- updateStealProgress keeps running for 1.4s so the green/red result
+    -- color stays visible, then auto-resets once justDone expires.
     StealTracker.isStealing = false
-    
-    if StealTracker.progressConn then
-        StealTracker.progressConn:Disconnect()
-        StealTracker.progressConn = nil
-    end
-    
-    if StealTracker.progressBar then
-        StealTracker.progressBar.Size = UDim2.new(0, 0, 1, 0)
-    end
-    
-    if StealTracker.statusLabel then
-        StealTracker.statusLabel.Text = "NOT READY"
-        StealTracker.statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    end
-    
-    if StealTracker.percentLabel then
-        StealTracker.percentLabel.Text = "0%"
-        StealTracker.percentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    end
 end
 
 -- ============================================================
@@ -775,153 +794,110 @@ local uiScaleObj
 -- TRYARD ANIMATION PACK - FULL IMPLEMENTATION
 -- ============================================================
 
-local TryardAnims = {
-    idle1 = "rbxassetid://10921344533",
-    idle2 = "rbxassetid://10921345304",
-    walk  = "rbxassetid://10921355261",
-    run   = "rbxassetid://616163682",
-    jump  = "rbxassetid://616139451",
-    fall  = "rbxassetid://616134815",
-    climb = "rbxassetid://116936326516985",
-    swim  = "rbxassetid://116936326516985",
-    swimidle = "rbxassetid://116936326516985",
-}
-
--- Preload animations
-task.spawn(function()
-    pcall(function() 
-        ContentProvider:PreloadAsync({
-            TryardAnims.idle1, TryardAnims.idle2, TryardAnims.walk, TryardAnims.run,
-            TryardAnims.jump, TryardAnims.fall, TryardAnims.climb, TryardAnims.swim, TryardAnims.swimidle,
-        }) 
-    end)
-end)
-
-local tryardHeartbeatConn = nil
-local originalTryardAnims = nil
-
--- Check if an animation ID is from the Tryard pack
-local function isTryardPackAnim(id) 
-    for _,v in pairs(TryardAnims) do 
-        if v == id then return true end 
-    end 
-    return false 
-end
-
--- Save original animations before replacing them
-local function saveOriginalTryardAnims(char)
-    local animate = char:FindFirstChild("Animate")
-    if not animate then return end
-    
-    local function g(obj) 
-        return obj and obj.AnimationId or nil 
-    end
-    
-    local ids = {
-        idle1 = g(animate.idle and animate.idle.Animation1),
-        idle2 = g(animate.idle and animate.idle.Animation2),
-        walk  = g(animate.walk and animate.walk.WalkAnim),
-        run   = g(animate.run  and animate.run.RunAnim),
-        jump  = g(animate.jump and animate.jump.JumpAnim),
-        fall  = g(animate.fall and animate.fall.FallAnim),
-        climb = g(animate.climb and animate.climb.ClimbAnim),
-        swim  = g(animate.swim and animate.swim.Swim),
-        swimidle = g(animate.swimidle and animate.swimidle.SwimIdle),
+-- Forward-declare so code at lines 1677/1679/3014/3016 can call these after the do block.
+local stopTryardAnim, startTryardAnim
+do
+    local TryardAnims = {
+        idle1 = "rbxassetid://10921344533",
+        idle2 = "rbxassetid://10921345304",
+        walk  = "rbxassetid://10921355261",
+        run   = "rbxassetid://616163682",
+        jump  = "rbxassetid://616139451",
+        fall  = "rbxassetid://616134815",
+        climb = "rbxassetid://116936326516985",
+        swim  = "rbxassetid://116936326516985",
+        swimidle = "rbxassetid://116936326516985",
     }
-    
-    -- Only save if not already using Tryard animations
-    if not isTryardPackAnim(ids.walk) then 
-        originalTryardAnims = ids 
-    end
-end
 
--- Apply the Tryard animation pack to a character
-local function applyTryardAnimPack(char)
-    local animate = char:FindFirstChild("Animate")
-    if not animate then return end
-    
-    local function s(obj, id) 
-        if obj then obj.AnimationId = id end 
-    end
-    
-    s(animate.idle and animate.idle.Animation1, TryardAnims.idle1)
-    s(animate.idle and animate.idle.Animation2, TryardAnims.idle2)
-    s(animate.walk and animate.walk.WalkAnim, TryardAnims.walk)
-    s(animate.run  and animate.run.RunAnim,   TryardAnims.run)
-    s(animate.jump and animate.jump.JumpAnim, TryardAnims.jump)
-    s(animate.fall and animate.fall.FallAnim, TryardAnims.fall)
-    s(animate.climb and animate.climb.ClimbAnim, TryardAnims.climb)
-    s(animate.swim and animate.swim.Swim, TryardAnims.swim)
-    s(animate.swimidle and animate.swimidle.SwimIdle, TryardAnims.swimidle)
-end
+    task.spawn(function()
+        pcall(function()
+            ContentProvider:PreloadAsync({
+                TryardAnims.idle1, TryardAnims.idle2, TryardAnims.walk, TryardAnims.run,
+                TryardAnims.jump, TryardAnims.fall, TryardAnims.climb, TryardAnims.swim, TryardAnims.swimidle,
+            })
+        end)
+    end)
 
--- Stop Tryard animations and restore originals
-local function stopTryardAnim()
-    if tryardHeartbeatConn then 
-        tryardHeartbeatConn:Disconnect() 
-        tryardHeartbeatConn = nil 
+    local tryardHeartbeatConn = nil
+    local originalTryardAnims = nil
+
+    local function isTryardPackAnim(id)
+        for _,v in pairs(TryardAnims) do if v == id then return true end end
+        return false
     end
-    
-    if originalTryardAnims and LP.Character then
-        local animate = LP.Character:FindFirstChild("Animate")
-        if animate then
-            local function s(obj, id) 
-                if obj then obj.AnimationId = id end 
+
+    local function saveOriginalTryardAnims(char)
+        local animate = char:FindFirstChild("Animate"); if not animate then return end
+        local function g(obj) return obj and obj.AnimationId or nil end
+        local ids = {
+            idle1=g(animate.idle and animate.idle.Animation1), idle2=g(animate.idle and animate.idle.Animation2),
+            walk=g(animate.walk and animate.walk.WalkAnim), run=g(animate.run and animate.run.RunAnim),
+            jump=g(animate.jump and animate.jump.JumpAnim), fall=g(animate.fall and animate.fall.FallAnim),
+            climb=g(animate.climb and animate.climb.ClimbAnim), swim=g(animate.swim and animate.swim.Swim),
+            swimidle=g(animate.swimidle and animate.swimidle.SwimIdle),
+        }
+        if not isTryardPackAnim(ids.walk) then originalTryardAnims = ids end
+    end
+
+    local function applyTryardAnimPack(char)
+        local animate = char:FindFirstChild("Animate"); if not animate then return end
+        local function s(obj, id) if obj then obj.AnimationId = id end end
+        s(animate.idle and animate.idle.Animation1, TryardAnims.idle1)
+        s(animate.idle and animate.idle.Animation2, TryardAnims.idle2)
+        s(animate.walk and animate.walk.WalkAnim,   TryardAnims.walk)
+        s(animate.run  and animate.run.RunAnim,     TryardAnims.run)
+        s(animate.jump and animate.jump.JumpAnim,   TryardAnims.jump)
+        s(animate.fall and animate.fall.FallAnim,   TryardAnims.fall)
+        s(animate.climb and animate.climb.ClimbAnim,TryardAnims.climb)
+        s(animate.swim and animate.swim.Swim,       TryardAnims.swim)
+        s(animate.swimidle and animate.swimidle.SwimIdle, TryardAnims.swimidle)
+    end
+
+    stopTryardAnim = function()
+        if tryardHeartbeatConn then tryardHeartbeatConn:Disconnect(); tryardHeartbeatConn = nil end
+        if originalTryardAnims and LP.Character then
+            local animate = LP.Character:FindFirstChild("Animate")
+            if animate then
+                local function s(obj, id) if obj then obj.AnimationId = id end end
+                s(animate.idle and animate.idle.Animation1, originalTryardAnims.idle1)
+                s(animate.idle and animate.idle.Animation2, originalTryardAnims.idle2)
+                s(animate.walk and animate.walk.WalkAnim,   originalTryardAnims.walk)
+                s(animate.run  and animate.run.RunAnim,     originalTryardAnims.run)
+                s(animate.jump and animate.jump.JumpAnim,   originalTryardAnims.jump)
+                s(animate.fall and animate.fall.FallAnim,   originalTryardAnims.fall)
+                s(animate.climb and animate.climb.ClimbAnim,originalTryardAnims.climb)
+                s(animate.swim and animate.swim.Swim,       originalTryardAnims.swim)
+                s(animate.swimidle and animate.swimidle.SwimIdle, originalTryardAnims.swimidle)
             end
-            
-            s(animate.idle and animate.idle.Animation1, originalTryardAnims.idle1)
-            s(animate.idle and animate.idle.Animation2, originalTryardAnims.idle2)
-            s(animate.walk and animate.walk.WalkAnim, originalTryardAnims.walk)
-            s(animate.run  and animate.run.RunAnim,   originalTryardAnims.run)
-            s(animate.jump and animate.jump.JumpAnim, originalTryardAnims.jump)
-            s(animate.fall and animate.fall.FallAnim, originalTryardAnims.fall)
-            s(animate.climb and animate.climb.ClimbAnim, originalTryardAnims.climb)
-            s(animate.swim and animate.swim.Swim, originalTryardAnims.swim)
-            s(animate.swimidle and animate.swimidle.SwimIdle, originalTryardAnims.swimidle)
         end
     end
-end
 
--- Start Tryard animations
-local function startTryardAnim()
-    if tryardHeartbeatConn then 
-        tryardHeartbeatConn:Disconnect() 
-    end
-    
-    local char = LP.Character
-    if char then
-        saveOriginalTryardAnims(char)
-        applyTryardAnimPack(char)
-        
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            -- Stop all currently playing animations
-            for _, track in ipairs(hum:GetPlayingAnimationTracks()) do 
-                track:Stop(0) 
+    startTryardAnim = function()
+        if tryardHeartbeatConn then tryardHeartbeatConn:Disconnect() end
+        local char = LP.Character
+        if char then
+            saveOriginalTryardAnims(char)
+            applyTryardAnimPack(char)
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                for _, track in ipairs(hum:GetPlayingAnimationTracks()) do track:Stop(0) end
+                hum:ChangeState(Enum.HumanoidStateType.Running)
             end
-            -- Force running state to trigger new animations
-            hum:ChangeState(Enum.HumanoidStateType.Running)
         end
+        tryardHeartbeatConn = RunService.Heartbeat:Connect(function()
+            if not State.tryardAnimEnabled then return end
+            local c = LP.Character; if c then applyTryardAnimPack(c) end
+        end)
     end
-    
-    -- Keep animations applied on every heartbeat
-    tryardHeartbeatConn = RunService.Heartbeat:Connect(function()
-        if not State.tryardAnimEnabled then return end
-        local c = LP.Character
-        if c then 
-            applyTryardAnimPack(c) 
+
+    LP.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        if State.tryardAnimEnabled and tryardHeartbeatConn then
+            saveOriginalTryardAnims(char)
+            applyTryardAnimPack(char)
         end
     end)
-end
-
--- Auto-apply when character respawns
-LP.CharacterAdded:Connect(function(char)
-    task.wait(0.5)
-    if State.tryardAnimEnabled and tryardHeartbeatConn then
-        saveOriginalTryardAnims(char)
-        applyTryardAnimPack(char)
-    end
-end)
+end -- end TryardAnims do block
 
 -- ============================================================
 -- THEME COLORS FOR GUI (BLACK & WHITE)
@@ -1067,26 +1043,47 @@ local function makeDraggable(frame,handle)
     end)
 end
 
-local function makeStackDraggable(frame,onTap)
-    local dragging,dragStart,startPos=false,nil,nil; local moved=false
+-- ============================================================
+-- FIXED makeStackDraggable (moved = true only when NOT locked)
+-- ============================================================
+local function makeStackDraggable(frame, onTap)
+    local dragging, dragStart, startPos = false, nil, nil
+    local moved = false
+
     frame.InputBegan:Connect(function(inp)
-        if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
-        dragging=true; moved=false; dragStart=inp.Position; startPos=frame.Position
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true
+        moved = false
+        dragStart = inp.Position
+        startPos = frame.Position
     end)
+
     UIS.InputEnded:Connect(function(inp)
-        if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
         if not dragging then return end
-        dragging=false
-        if not moved and onTap then onTap() end
-        moved=false
+        dragging = false
+        if not moved and onTap then
+            onTap()
+        end
+        moved = false
     end)
+
     UIS.InputChanged:Connect(function(inp)
         if not dragging then return end
-        if inp.UserInputType~=Enum.UserInputType.MouseMovement and inp.UserInputType~=Enum.UserInputType.Touch then return end
-        local dx=inp.Position.X-dragStart.X; local dy=inp.Position.Y-dragStart.Y
-        if math.abs(dx)>4 or math.abs(dy)>4 then moved=true end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local dx = inp.Position.X - dragStart.X
+        local dy = inp.Position.Y - dragStart.Y
+        if math.abs(dx) > 4 or math.abs(dy) > 4 then
+            -- Only mark as moved if we are NOT locked (so dragging is allowed)
+            if not State.uiLocked then
+                moved = true
+            end
+        end
         if moved and not State.uiLocked then
-            frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+dx,startPos.Y.Scale,startPos.Y.Offset+dy)
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + dx,
+                startPos.Y.Scale, startPos.Y.Offset + dy
+            )
         end
     end)
 end
@@ -1815,34 +1812,30 @@ fl.TextSize = 10; fl.TextXAlignment = Enum.TextXAlignment.Center
 -- ============================================================
 -- BAT COUNTER
 -- ============================================================
-local BAT_COUNTER_SLAP_LIST={"Bat","Slap","Iron Slap","Gold Slap","Diamond Slap","Emerald Slap","Ruby Slap","Dark Matter Slap","Flame Slap","Nuclear Slap","Galaxy Slap","Glitched Slap"}
-
-local function findBatForCounter()
-    local c=LP.Character; if not c then return nil end
-    local bp=LP:FindFirstChildOfClass("Backpack")
-    for _,name in ipairs(BAT_COUNTER_SLAP_LIST) do
-        local t=c:FindFirstChild(name) or (bp and bp:FindFirstChild(name))
-        if t then return t end
-    end
-    for _,ch in ipairs(c:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end
-    if bp then for _,ch in ipairs(bp:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end end
-    return nil
-end
-
-local function swingBatForCounter(bat,char)
-    if bat.Parent ~= char then
-        bat.Parent = char
-    end
-    local remote=bat:FindFirstChildOfClass("RemoteEvent") or bat:FindFirstChildOfClass("RemoteFunction")
-    if remote and remote:IsA("RemoteEvent") then
-        pcall(function() remote:FireServer() end)
-        pcall(function() remote:FireServer() end)
-    else
-        pcall(function() bat:Activate() end)
-    end
-end
-
 startBatCounter=function()
+    -- helpers scoped here — only used inside this function
+    local BAT_COUNTER_SLAP_LIST={"Bat","Slap","Iron Slap","Gold Slap","Diamond Slap","Emerald Slap","Ruby Slap","Dark Matter Slap","Flame Slap","Nuclear Slap","Galaxy Slap","Glitched Slap"}
+    local function findBatForCounter()
+        local c=LP.Character; if not c then return nil end
+        local bp=LP:FindFirstChildOfClass("Backpack")
+        for _,name in ipairs(BAT_COUNTER_SLAP_LIST) do
+            local t=c:FindFirstChild(name) or (bp and bp:FindFirstChild(name))
+            if t then return t end
+        end
+        for _,ch in ipairs(c:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end
+        if bp then for _,ch in ipairs(bp:GetChildren()) do if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end end end
+        return nil
+    end
+    local function swingBatForCounter(bat,char)
+        if bat.Parent ~= char then bat.Parent = char end
+        local remote=bat:FindFirstChildOfClass("RemoteEvent") or bat:FindFirstChildOfClass("RemoteFunction")
+        if remote and remote:IsA("RemoteEvent") then
+            pcall(function() remote:FireServer() end)
+            pcall(function() remote:FireServer() end)
+        else
+            pcall(function() bat:Activate() end)
+        end
+    end
     if Conns.batCounter then return end
     Conns.batCounter=RunService.Heartbeat:Connect(function()
         if not State.batCounterEnabled then return end
@@ -1875,139 +1868,113 @@ end
 -- BAT AIMBOT
 -- ============================================================
 local aimbotActive = false
-local aimbotConnection = nil
+-- Forward-declare toggleAimbot; called from UI/input at many points after this block.
+local toggleAimbot
+do
+    local aimbotConnection = nil
 
-local function getBat()
-    local char = LP.Character; if not char then return nil end
-    for _, name in ipairs(BAT_NAMES) do
-        local tool = char:FindFirstChild(name)
-        if tool and tool:IsA("Tool") then return tool end
+    local function getBat()
+        local char = LP.Character; if not char then return nil end
+        for _, name in ipairs(BAT_NAMES) do
+            local tool = char:FindFirstChild(name)
+            if tool and tool:IsA("Tool") then return tool end
+        end
+        return nil
     end
-    return nil
-end
-
-local function swingCurrentBat()
-    local char = LP.Character; if not char then return end
-    local bat = getBat()
-    if bat and bat.Parent == char and bat:IsA("Tool") then
-        pcall(function() bat:Activate() end)
+    local function swingCurrentBat()
+        local char = LP.Character; if not char then return end
+        local bat = getBat()
+        if bat and bat.Parent == char and bat:IsA("Tool") then
+            pcall(function() bat:Activate() end)
+        end
     end
-end
-
-local function getClosestEnemy()
-    local char = LP.Character; if not char then return nil, math.huge, nil, nil end
-    local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return nil, math.huge, nil, nil end
-    local closest, closestDist, closestChar, closestHRP = nil, math.huge, nil, nil
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LP and player.Character then
-            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-            if targetHRP and targetHum and targetHum.Health > 0 then
-                local dist = (myHRP.Position - targetHRP.Position).Magnitude
-                if dist < closestDist then
-                    closestDist = dist
-                    closest = player
-                    closestChar = player.Character
-                    closestHRP = targetHRP
+    local function getClosestEnemy()
+        local char = LP.Character; if not char then return nil, math.huge, nil, nil end
+        local myHRP = char:FindFirstChild("HumanoidRootPart"); if not myHRP then return nil, math.huge, nil, nil end
+        local closest, closestDist, closestChar, closestHRP = nil, math.huge, nil, nil
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LP and player.Character then
+                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                if targetHRP and targetHum and targetHum.Health > 0 then
+                    local dist = (myHRP.Position - targetHRP.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist; closest = player
+                        closestChar = player.Character; closestHRP = targetHRP
+                    end
                 end
             end
         end
+        return closest, closestDist, closestChar, closestHRP
     end
-    return closest, closestDist, closestChar, closestHRP
-end
 
-local function startAimbot()
-    if aimbotConnection then return end
-    aimbotActive = true
-
-    if State.autoLeftEnabled then State.autoLeftEnabled = false; stopAutoLeft() end
-    if State.autoRightEnabled then State.autoRightEnabled = false; stopAutoRight() end
-
-    local hum0 = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-    if hum0 then hum0.AutoRotate = false end
-
-    aimbotConnection = RunService.RenderStepped:Connect(function()
-        if not aimbotActive then return end
-        local char = LP.Character; if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum2 = char:FindFirstChildOfClass("Humanoid")
-        if not root or not hum2 then return end
-
-        local _, _, _, targetHRP = getClosestEnemy()
-        if not targetHRP then
+    local function startAimbot()
+        if aimbotConnection then return end
+        aimbotActive = true
+        if State.autoLeftEnabled then State.autoLeftEnabled = false; stopAutoLeft() end
+        if State.autoRightEnabled then State.autoRightEnabled = false; stopAutoRight() end
+        local hum0 = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum0 then hum0.AutoRotate = false end
+        aimbotConnection = RunService.RenderStepped:Connect(function()
+            if not aimbotActive then return end
+            local char = LP.Character; if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local hum2 = char:FindFirstChildOfClass("Humanoid")
+            if not root or not hum2 then return end
+            local _, _, _, targetHRP = getClosestEnemy()
+            if not targetHRP then swingCurrentBat(); return end
+            local targetVel = targetHRP.Velocity
+            local myPos = root.Position
+            local targetPos = targetHRP.Position
+            local predictPos = targetPos + targetVel * 0.14
+            local direction  = predictPos - myPos
+            local flatDir    = Vector3.new(direction.X, 0, direction.Z).Unit
+            local chaseSpeed = 60
+            local desiredHeight = targetPos.Y + 3.5
+            local yVel = (desiredHeight - myPos.Y) * 19.5 + targetVel.Y * 0.8
+            if hum2.FloorMaterial ~= Enum.Material.Air then yVel = math.max(yVel, 13) end
+            yVel = math.clamp(yVel, -70, 110)
+            root.Velocity = root.Velocity:Lerp(Vector3.new(flatDir.X * chaseSpeed, yVel, flatDir.Z * chaseSpeed), 0.8)
+            local predictedPos = targetPos + targetVel * math.clamp(targetVel.Magnitude / 150, 0.05, 0.2)
+            local toPredict    = predictedPos - myPos
+            if toPredict.Magnitude > 0.1 then
+                local goalCF = CFrame.lookAt(myPos, predictedPos)
+                local diffCF = root.CFrame:Inverse() * goalCF
+                local rx, ry, rz = diffCF:ToEulerAnglesXYZ()
+                rx = math.clamp(rx, -2.5, 2.5); ry = math.clamp(ry, -2.5, 2.5); rz = math.clamp(rz, -2.5, 2.5)
+                root.AssemblyAngularVelocity = root.CFrame:VectorToWorldSpace(Vector3.new(rx*42, ry*42, rz*42))
+            end
             swingCurrentBat()
-            return
-        end
-
-        local targetVel = targetHRP.Velocity
-        local myPos    = root.Position
-        local targetPos = targetHRP.Position
-
-        local predictPos = targetPos + targetVel * 0.14
-        local direction  = predictPos - myPos
-        local flatDir    = Vector3.new(direction.X, 0, direction.Z).Unit
-
-        local chaseSpeed   = 60
-        local desiredHeight = targetPos.Y + 3.5
-        local yVel = (desiredHeight - myPos.Y) * 19.5 + targetVel.Y * 0.8
-        if hum2.FloorMaterial ~= Enum.Material.Air then
-            yVel = math.max(yVel, 13)
-        end
-        yVel = math.clamp(yVel, -70, 110)
-
-        local desiredVel = Vector3.new(flatDir.X * chaseSpeed, yVel, flatDir.Z * chaseSpeed)
-        root.Velocity = root.Velocity:Lerp(desiredVel, 0.8)
-
-        local predictedPos = targetPos + targetVel * math.clamp(targetVel.Magnitude / 150, 0.05, 0.2)
-        local toPredict    = predictedPos - myPos
-        if toPredict.Magnitude > 0.1 then
-            local goalCF = CFrame.lookAt(myPos, predictedPos)
-            local diffCF = root.CFrame:Inverse() * goalCF
-            local rx, ry, rz = diffCF:ToEulerAnglesXYZ()
-            rx = math.clamp(rx, -2.5, 2.5)
-            ry = math.clamp(ry, -2.5, 2.5)
-            rz = math.clamp(rz, -2.5, 2.5)
-            root.AssemblyAngularVelocity = root.CFrame:VectorToWorldSpace(
-                Vector3.new(rx * 42, ry * 42, rz * 42)
-            )
-        end
-
-        swingCurrentBat()
-    end)
-end
-
-local function stopAimbot()
-    aimbotActive = false
-    if aimbotConnection then
-        aimbotConnection:Disconnect()
-        aimbotConnection = nil
+        end)
     end
-    local char = LP.Character
-    if char then
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.Velocity = Vector3.zero
-            root.AssemblyAngularVelocity = Vector3.zero
+
+    local function stopAimbot()
+        aimbotActive = false
+        if aimbotConnection then aimbotConnection:Disconnect(); aimbotConnection = nil end
+        local char = LP.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then root.Velocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero end
+            local hum2 = char:FindFirstChildOfClass("Humanoid")
+            if hum2 then hum2.AutoRotate = true end
         end
-        local hum2 = char:FindFirstChildOfClass("Humanoid")
-        if hum2 then hum2.AutoRotate = true end
     end
-end
 
-local function toggleAimbot()
-    if aimbotActive then
-        stopAimbot()
-        State.batAimbotToggled = false
-        if stackBtnRefs.aimbot then stackBtnRefs.aimbot.setOn(false) end
-    else
-        startAimbot()
-        State.batAimbotToggled = true
-        if stackBtnRefs.aimbot then stackBtnRefs.aimbot.setOn(true) end
+    toggleAimbot = function()
+        if aimbotActive then
+            stopAimbot()
+            State.batAimbotToggled = false
+            if stackBtnRefs.aimbot then stackBtnRefs.aimbot.setOn(false) end
+        else
+            startAimbot()
+            State.batAimbotToggled = true
+            if stackBtnRefs.aimbot then stackBtnRefs.aimbot.setOn(true) end
+        end
     end
-end
 
-startBatAimbot = startAimbot
-stopBatAimbot  = stopAimbot
+    startBatAimbot = startAimbot
+    stopBatAimbot  = stopAimbot
+end -- end aimbot do block
 
 -- ============================================================
 -- VBTN - FIXED VERSION
@@ -2045,46 +2012,36 @@ vBtnLbl.TextYAlignment = Enum.TextYAlignment.Center; vBtnLbl.TextStrokeTranspare
 vBtnLbl.TextStrokeColor3 = THEME.DARK_BLUE
 vBtnLbl.ZIndex = 21
 
-local vDragging,vDragStart,vStartPos=false,nil,nil
-local vMoved=false
+do
+    local vDragging,vDragStart,vStartPos=false,nil,nil
+    local vMoved=false
 
-vBtnFrame.InputBegan:Connect(function(inp)
-    if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
-    vDragging=true
-    vMoved=false
-    vDragStart=inp.Position
-    vStartPos=vBtnFrame.Position
-end)
-
-UIS.InputEnded:Connect(function(inp)
-    if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
-    if not vDragging then return end
-    vDragging=false
-    if not vMoved then 
-        State.guiVisible=not State.guiVisible
-        if State.guiVisible then 
-            showGui()
-            vBtnLbl.Text="CLOSE" 
-        else 
-            hideGui()
-            vBtnLbl.Text="OPEN" 
+    vBtnFrame.InputBegan:Connect(function(inp)
+        if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
+        vDragging=true; vMoved=false; vDragStart=inp.Position; vStartPos=vBtnFrame.Position
+    end)
+    UIS.InputEnded:Connect(function(inp)
+        if inp.UserInputType~=Enum.UserInputType.MouseButton1 and inp.UserInputType~=Enum.UserInputType.Touch then return end
+        if not vDragging then return end
+        vDragging=false
+        if not vMoved then
+            State.guiVisible=not State.guiVisible
+            if State.guiVisible then showGui(); vBtnLbl.Text="CLOSE"
+            else hideGui(); vBtnLbl.Text="OPEN" end
         end
-    end
-    vMoved=false
-end)
-
-UIS.InputChanged:Connect(function(inp)
-    if not vDragging then return end
-    if inp.UserInputType~=Enum.UserInputType.MouseMovement and inp.UserInputType~=Enum.UserInputType.Touch then return end
-    local dx=inp.Position.X-vDragStart.X
-    local dy=inp.Position.Y-vDragStart.Y
-    if math.abs(dx)>4 or math.abs(dy)>4 then 
-        vMoved=true
-    end
-    if vMoved and not State.uiLocked then
-        vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy)
-    end
-end)
+        vMoved=false
+    end)
+    UIS.InputChanged:Connect(function(inp)
+        if not vDragging then return end
+        if inp.UserInputType~=Enum.UserInputType.MouseMovement and inp.UserInputType~=Enum.UserInputType.Touch then return end
+        local dx=inp.Position.X-vDragStart.X
+        local dy=inp.Position.Y-vDragStart.Y
+        if math.abs(dx)>4 or math.abs(dy)>4 then vMoved=true end
+        if vMoved and not State.uiLocked then
+            vBtnFrame.Position=UDim2.new(vStartPos.X.Scale,vStartPos.X.Offset+dx,vStartPos.Y.Scale,vStartPos.Y.Offset+dy)
+        end
+    end)
+end -- end vBtn dragging do block
 
 -- stealRadBox sync loop
 do
@@ -2530,123 +2487,120 @@ end
 -- ============================================================
 -- ANTI LAG
 -- ============================================================
-local antiLagConn = nil
-local antiLagConnections = {}
+-- Wrap anti-lag locals in do..end so their registers are freed before the
+-- sync/steal section below (PC Lua compiler has a hard 200-local limit per chunk).
+do
+    local antiLagConn = nil
+    local antiLagConnections = {}
 
-local function applyAntiLag(instance)
-    pcall(function()
-        if instance:IsA("ParticleEmitter") then
-            instance.Enabled = false
-        elseif instance:IsA("Decal") or instance:IsA("Texture") then
-            instance.Transparency = 1
-        elseif instance:IsA("BasePart") then
-            instance.CastShadow = false
-            instance.Reflectance = 0
-            if instance.Material ~= Enum.Material.Plastic then
-                instance.Material = Enum.Material.Plastic
+    local function applyAntiLag(instance)
+        pcall(function()
+            if instance:IsA("ParticleEmitter") then
+                instance.Enabled = false
+            elseif instance:IsA("Decal") or instance:IsA("Texture") then
+                instance.Transparency = 1
+            elseif instance:IsA("BasePart") then
+                instance.CastShadow = false
+                instance.Reflectance = 0
+                if instance.Material ~= Enum.Material.Plastic then
+                    instance.Material = Enum.Material.Plastic
+                end
+            elseif instance:IsA("MeshPart") then
+                instance.CastShadow = false
+                instance.RenderFidelity = Enum.RenderFidelity.Performance
+            elseif instance:IsA("Model") then
+                instance.LevelOfDetail = Enum.ModelLevelOfDetail.Disabled
+            elseif instance:IsA("Fire") or instance:IsA("Smoke") or instance:IsA("Sparkles")
+                or instance:IsA("Trail") or instance:IsA("Beam") then
+                instance.Enabled = false
+            elseif instance:IsA("SpotLight") or instance:IsA("PointLight") or instance:IsA("SurfaceLight") then
+                instance.Enabled = false
+            elseif instance:IsA("Accessory") then
+                instance:Destroy()
             end
-        elseif instance:IsA("MeshPart") then
-            instance.CastShadow = false
-            instance.RenderFidelity = Enum.RenderFidelity.Performance
-        elseif instance:IsA("Model") then
-            instance.LevelOfDetail = Enum.ModelLevelOfDetail.Disabled
-        elseif instance:IsA("Fire") or instance:IsA("Smoke") or instance:IsA("Sparkles") 
-            or instance:IsA("Trail") or instance:IsA("Beam") then
-            instance.Enabled = false
-        elseif instance:IsA("SpotLight") or instance:IsA("PointLight") or instance:IsA("SurfaceLight") then
-            instance.Enabled = false
-        elseif instance:IsA("Accessory") then
-            instance:Destroy()
-        end
-    end)
-end
+        end)
+    end
 
-local function optimizeLighting()
-    pcall(function()
-        local Lighting = game:GetService("Lighting")
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-        
-        for _, child in pairs(Lighting:GetDescendants()) do
-            if child:IsA("BloomEffect") or child:IsA("BlurEffect") or child:IsA("SunRaysEffect") 
-            or child:IsA("DepthOfFieldEffect") or child:IsA("ColorCorrectionEffect") then
-                child.Enabled = false
+    local function optimizeLighting()
+        pcall(function()
+            local Lighting = game:GetService("Lighting")
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            for _, child in pairs(Lighting:GetDescendants()) do
+                if child:IsA("BloomEffect") or child:IsA("BlurEffect") or child:IsA("SunRaysEffect")
+                or child:IsA("DepthOfFieldEffect") or child:IsA("ColorCorrectionEffect") then
+                    child.Enabled = false
+                end
             end
+            local terrain = workspace:FindFirstChildOfClass("Terrain")
+            if terrain then
+                terrain.WaterReflectance = 0
+                terrain.WaterWaveSize = 0
+                terrain.WaterWaveSpeed = 0
+            end
+        end)
+    end
+
+    local function enableAntiLag()
+        pcall(function() setfpscap(999999999) end)
+        if antiLagConn then
+            antiLagConn:Disconnect()
+            antiLagConn = nil
         end
-        
-        local terrain = workspace:FindFirstChildOfClass("Terrain")
-        if terrain then
-            terrain.WaterReflectance = 0
-            terrain.WaterWaveSize = 0
-            terrain.WaterWaveSpeed = 0
+        for _, conn in ipairs(antiLagConnections) do
+            pcall(function() conn:Disconnect() end)
         end
-    end)
-end
-
-local function enableAntiLag()
-    pcall(function() setfpscap(999999999) end)
-    
-    if antiLagConn then 
-        antiLagConn:Disconnect() 
-        antiLagConn = nil 
-    end
-    
-    for _, conn in ipairs(antiLagConnections) do
-        pcall(function() conn:Disconnect() end)
-    end
-    antiLagConnections = {}
-    
-    optimizeLighting()
-    
-    for _, v in pairs(workspace:GetDescendants()) do
-        applyAntiLag(v)
-    end
-    
-    antiLagConn = workspace.DescendantAdded:Connect(function(desc)
-        if State.antiLagEnabled then
-            task.spawn(applyAntiLag, desc)
+        antiLagConnections = {}
+        optimizeLighting()
+        for _, v in pairs(workspace:GetDescendants()) do
+            applyAntiLag(v)
         end
-    end)
-    table.insert(antiLagConnections, antiLagConn)
-end
-
-local function disableAntiLag()
-    pcall(function() setfpscap(60) end)
-    
-    if antiLagConn then 
-        antiLagConn:Disconnect() 
-        antiLagConn = nil 
+        antiLagConn = workspace.DescendantAdded:Connect(function(desc)
+            if State.antiLagEnabled then
+                task.spawn(applyAntiLag, desc)
+            end
+        end)
+        table.insert(antiLagConnections, antiLagConn)
     end
-    
-    for _, conn in ipairs(antiLagConnections) do
-        pcall(function() conn:Disconnect() end)
+
+    local function disableAntiLag()
+        pcall(function() setfpscap(60) end)
+        if antiLagConn then
+            antiLagConn:Disconnect()
+            antiLagConn = nil
+        end
+        for _, conn in ipairs(antiLagConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        antiLagConnections = {}
     end
-    antiLagConnections = {}
-end
 
-local originalSetFps = setFps
-setFps = function(on)
-    State.fpsBoostEnabled = on
-    State.antiLagEnabled = on
-    if on then
-        pcall(enableAntiLag)
-    else
-        pcall(disableAntiLag)
+    -- Reassign the forward-declared outer locals (setFps, applyFPSBoost) so
+    -- their closures capture enableAntiLag/disableAntiLag from this scope.
+    local originalSetFps = setFps
+    setFps = function(on)
+        State.fpsBoostEnabled = on
+        State.antiLagEnabled = on
+        if on then
+            pcall(enableAntiLag)
+        else
+            pcall(disableAntiLag)
+        end
+        if originalSetFps then pcall(originalSetFps, on) end
+        pcall(saveConfig)
     end
-    if originalSetFps then pcall(originalSetFps, on) end
-    pcall(saveConfig)
-end
 
-applyFPSBoost = function()
-    pcall(enableAntiLag)
-end
-
-task.spawn(function()
-    if State.fpsBoostEnabled then
-        task.wait(1)
+    applyFPSBoost = function()
         pcall(enableAntiLag)
     end
-end)
+
+    task.spawn(function()
+        if State.fpsBoostEnabled then
+            task.wait(1)
+            pcall(enableAntiLag)
+        end
+    end)
+end -- end anti-lag do block
 
 -- ============================================================
 -- STEAL FUNCTIONS (WITH TRACKER INTEGRATED)
@@ -2659,44 +2613,262 @@ local function isMyPlotByName(pn)
     Steal.plotCache[pn]=false; Steal.plotCacheTime[pn]=ct; return false
 end
 
-local function findNearestPrompt()
-    local c=LP.Character; if not c then return nil end; local root=c:FindFirstChild("HumanoidRootPart"); if not root then return nil end
-    local ct=tick(); if ct-Steal.promptCacheTime<PROMPT_CACHE_REFRESH and #Steal.cachedPrompts>0 then local np,nd=nil,math.huge; for _,data in ipairs(Steal.cachedPrompts) do if data.spawn then local dist=(data.spawn.Position-root.Position).Magnitude; if dist<=Steal.StealRadius and dist<nd then np=data.prompt; nd=dist end end end; if np then return np end end
-    Steal.cachedPrompts={}; Steal.promptCacheTime=ct; local plots=workspace:FindFirstChild("Plots"); if not plots then return nil end; local np,nd=nil,math.huge
-    for _,plot in ipairs(plots:GetChildren()) do if isMyPlotByName(plot.Name) then continue end; local pods=plot:FindFirstChild("AnimalPodiums"); if not pods then continue end
-        for _,pod in ipairs(pods:GetChildren()) do pcall(function() local base=pod:FindFirstChild("Base"); local sp=base and base:FindFirstChild("Spawn"); if sp then local att=sp:FindFirstChild("PromptAttachment"); if att then for _,child in ipairs(att:GetChildren()) do if child:IsA("ProximityPrompt") then local dist=(sp.Position-root.Position).Magnitude; table.insert(Steal.cachedPrompts,{prompt=child,spawn=sp}); if dist<=Steal.StealRadius and dist<nd then np=child; nd=dist end; break end end end end end) end
-    end; return np
-end
+-- ── Auto Steal V2 engine (latestakkai10 source) ───────────────────────────────
+-- AG_CONFIG is top-level so Nyxora's UI can reference V2_PRIME_RANGE later.
+local AG_CONFIG = {HOLD_MIN=1.3, HOLD_MAX=2.6, ENTRY_DELAY=0.3, COOLDOWN=0.05,
+    V2_STEAL_RANGE=8, V2_PRIME_RANGE=70}
 
-local function executeSteal(prompt)
-    local ct=tick(); if ct-State.lastStealTick<STEAL_COOLDOWN then return end; if State.isStealing then return end
-    if not Steal.Data[prompt] then Steal.Data[prompt]={hold={},trigger={},ready=true}; pcall(function() if getconnections then for _,c2 in ipairs(getconnections(prompt.PromptButtonHoldBegan)) do if c2.Function then table.insert(Steal.Data[prompt].hold,c2.Function) end end; for _,c2 in ipairs(getconnections(prompt.Triggered)) do if c2.Function then table.insert(Steal.Data[prompt].trigger,c2.Function) end end else Steal.Data[prompt].useFallback=true end end) end
-    local data=Steal.Data[prompt]; if not data.ready then return end; data.ready=false; State.isStealing=true; State.stealStartTime=ct; State.lastStealTick=ct
-    
-    -- SHOW THE TRACKER
-    showStealProgress(Steal.StealDuration)
-    
-    task.spawn(function()
-        local ok=false; pcall(function() if not data.useFallback then for _,fn in ipairs(data.hold) do task.spawn(fn) end; task.wait(Steal.StealDuration); for _,fn in ipairs(data.trigger) do task.spawn(fn) end; ok=true end end)
-        if not ok and fireproximityprompt then pcall(function() fireproximityprompt(prompt); ok=true end) end
-        if not ok then pcall(function() prompt:InputHoldBegin(); task.wait(Steal.StealDuration); prompt:InputHoldEnd() end) end
-        
-        -- HIDE THE TRACKER
+do -- all V2 internals scoped here — frees top-level registers vs named locals
+    local _pas2     = { caches={}, connections={} }   -- plot-animal sync
+    local _aac2     = {}   -- all-animals cache
+    local _pmc2     = {}   -- prompt memory cache
+    local _isc2     = {}   -- internal steal cache
+    local _v2sc     = nil  -- heartbeat RBXScriptConnection
+    local _agReady2 = false
+    -- Alias Nyxora's forward-declared _StealState so the bar UI updates live.
+    local _SS2      = _StealState
+
+    -- Forward-declare animal helpers; assigned inside async init (need _plots/AnimalsData).
+    local _gap2, _fpfa2, _pc2, _as2
+
+    -- ── sync diff helpers ──────────────────────────────────────────────────────
+    local function _ssp2(path)
+        if typeof(path)=="table" then return path end
+        local out={}; for part in string.gmatch(tostring(path),"[^%.]+") do table.insert(out,tonumber(part) or part) end; return out
+    end
+    local function _rsp2(path,root)
+        local cur,par,key=root,nil,nil
+        for _,part in ipairs(_ssp2(path)) do par=cur;key=part;cur=cur and cur[part] or nil end
+        return cur,par,key
+    end
+    local function _apsd2(ch,pkt)
+        local cache=_pas2.caches[ch]; if typeof(cache)~="table" then return end
+        local path,action,a,b=pkt[1],pkt[2],pkt[3],pkt[4]; local cur,par,key=_rsp2(path,cache)
+        if action=="Changed" then if par~=nil then par[key]=a end
+        elseif action=="ArrayInsert" then if cur~=nil then table.insert(cur,b,a) end
+        elseif action=="ArrayRemoved" then if cur~=nil then table.remove(cur,b) end
+        elseif action=="DictionaryInsert" then if cur~=nil then cur[b]=a end
+        elseif action=="DictionaryRemoved" then if cur~=nil then cur[b]=nil end end
+    end
+    local function _apc2(remote,_plots,_synR2)
+        if _pas2.connections[remote] then return end
+        local ch=tostring(remote.Name)
+        if not _plots:FindFirstChild(ch) then return end
+        if _pas2.caches[ch]==nil then
+            if _synR2.requestData then
+                local ok,data=pcall(function() return _synR2.requestData:InvokeServer(ch) end)
+                _pas2.caches[ch]=(ok and typeof(data)=="table") and data or {}
+            else _pas2.caches[ch]={} end
+        end
+        _pas2.connections[remote]=remote.OnClientEvent:Connect(function(q)
+            for _,pkt in ipairs(q) do _apsd2(ch,pkt) end
+        end)
+    end
+    local function _dpc2(ch)
+        for remote,conn in pairs(_pas2.connections) do
+            if tostring(remote.Name)==tostring(ch) then
+                conn:Disconnect(); _pas2.connections[remote]=nil; _pas2.caches[tostring(ch)]=nil; break
+            end
+        end
+    end
+
+    -- ── plot owner / "is my base" ──────────────────────────────────────────────
+    local function _gpo2(plot)
+        local sign=plot:FindFirstChild("PlotSign")
+        local frame=sign and sign:FindFirstChild("SurfaceGui") and sign.SurfaceGui:FindFirstChild("Frame")
+        local lbl=frame and frame:FindFirstChild("TextLabel")
+        if not lbl or lbl.Text=="Empty Base" then return nil end
+        return lbl.Text:gsub("'s [Bb]ase$",""):gsub("%s+$","")
+    end
+    local function _imba2(ad,_plots)
+        if not ad or not ad.plot then return false end
+        local plot=_plots:FindFirstChild(ad.plot); if not plot then return false end
+        return _gpo2(plot)==LP.DisplayName
+    end
+
+    -- ── distance helper (calls _gap2 which is set after init) ─────────────────
+    local function _dta2(ad)
+        local char=LP.Character; if not char then return math.huge end
+        local hrp=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return math.huge end
+        local pos=_gap2 and _gap2(ad); if not pos then return math.huge end
+        return (hrp.Position-pos).Magnitude
+    end
+
+    -- ── build hold/trigger callbacks for a prompt ──────────────────────────────
+    local function _bsc2(prompt)
+        if _isc2[prompt] then return end
+        local data={holdCallbacks={},triggerCallbacks={},ready=true}
+        local okA,c1=pcall(getconnections,prompt.PromptButtonHoldBegan)
+        if okA and type(c1)=="table" then for _,c in ipairs(c1) do if type(c.Function)=="function" then table.insert(data.holdCallbacks,c.Function) end end end
+        local okB,c2=pcall(getconnections,prompt.Triggered)
+        if okB and type(c2)=="table" then for _,c in ipairs(c2) do if type(c.Function)=="function" then table.insert(data.triggerCallbacks,c.Function) end end end
+        if (#data.holdCallbacks>0) or (#data.triggerCallbacks>0) then _isc2[prompt]=data end
+    end
+
+    -- ── core steal execution: hold → wait range → fire ─────────────────────────
+    local function _esa2(prompt,ad)
+        local data=_isc2[prompt]; if not data or not data.ready then return false end
+        data.ready=false
+        local label=ad.name or "Animal"
+        _SS2.active=true; _SS2.startTime=tick(); _SS2.phase="holding"; _SS2.label=label
+        State.isStealing=true
+        showStealProgress(AG_CONFIG.HOLD_MIN+AG_CONFIG.HOLD_MAX)
+        task.spawn(function()
+            for _,fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
+            task.wait(AG_CONFIG.HOLD_MIN)
+            _SS2.phase="waitingRange"
+            local alreadyInRange=_dta2(ad)<=AG_CONFIG.V2_STEAL_RANGE
+            local fired=false
+            local deadline=tick()+AG_CONFIG.HOLD_MAX
+            while tick()<deadline do
+                if not prompt.Parent then break end
+                if _dta2(ad)<=AG_CONFIG.V2_STEAL_RANGE then
+                    if not alreadyInRange then task.wait(AG_CONFIG.ENTRY_DELAY) end
+                    for _,fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
+                    fired=true; break
+                end
+                task.wait()
+            end
+            _SS2.lastResult     = fired and ("Stole "..label) or ("Missed "..label)
+            _SS2.lastResultTime = tick()
+            _SS2.active=false; _SS2.phase="idle"
+            State.isStealing=false
+            hideStealProgress()
+            task.wait(AG_CONFIG.COOLDOWN); data.ready=true
+        end)
+        return true
+    end
+
+    -- ── public API: assigned to Nyxora's forward-declared upvalues ─────────────
+    startAutoSteal=function()
+        if _v2sc then return end
+        if not _agReady2 then
+            -- init still loading — retry once it finishes
+            task.spawn(function()
+                repeat task.wait(0.5) until _agReady2 or not Steal.AutoStealEnabled
+                if Steal.AutoStealEnabled and not _v2sc then startAutoSteal() end
+            end); return
+        end
+        _v2sc=RunService.Heartbeat:Connect(function()
+            if not Steal.AutoStealEnabled or _SS2.active then return end
+            local target=_pc2(); if not target then return end
+            local prompt=_pmc2[target.uid]
+            if not prompt or not prompt.Parent then prompt=_fpfa2(target) end
+            if prompt then _as2(prompt,target) end
+        end)
+    end
+    stopAutoSteal=function()
+        if _v2sc then _v2sc:Disconnect(); _v2sc=nil end
+        _SS2.active=false; _SS2.phase="idle"
+        State.isStealing=false; State.lastStealTick=0
+        Steal.plotCache={}; Steal.plotCacheTime={}; Steal.cachedPrompts={}
+        _aac2={}; _pmc2={}; _isc2={}
         hideStealProgress()
-        
-        data.ready=true; State.isStealing=false
-    end)
-end
+    end
 
-startAutoSteal=function()
-    if Conns.autoSteal then return end
-    Conns.autoSteal=RunService.Heartbeat:Connect(function() if not Steal.AutoStealEnabled or State.isStealing then return end; local p=findNearestPrompt(); if p then executeSteal(p) end end)
-end
-stopAutoSteal=function()
-    if Conns.autoSteal then Conns.autoSteal:Disconnect(); Conns.autoSteal=nil end
-    State.isStealing=false; State.lastStealTick=0; Steal.plotCache={}; Steal.plotCacheTime={}; Steal.cachedPrompts={}
-    hideStealProgress()
-end
+    -- ── async init: WaitForChild in background so script loads instantly ────────
+    task.spawn(function()
+        local _RS=game:GetService("ReplicatedStorage")
+        local ok1,_Pkgs  = pcall(function() return _RS:WaitForChild("Packages",8) end)
+        local ok2,_Datas = pcall(function() return _RS:WaitForChild("Datas",8) end)
+        if not ok1 or not ok2 then return end
+        local ok3,AnimalsData = pcall(function() return require(_Datas:WaitForChild("Animals",8)) end)
+        if not ok3 then return end
+        local _plots=workspace:WaitForChild("Plots")
+        local _synR2=(function()
+            local f=_Pkgs:WaitForChild("Synchronizer",8); if not f then return {} end
+            return {
+                channelFolder=f:WaitForChild("Channel"),
+                routeRemote  =f:WaitForChild("CommunicationRoute"),
+                requestData  =f:FindFirstChild("RequestData"),
+            }
+        end)()
+        if not _synR2.channelFolder then return end
+
+        -- wire sync channels
+        for _,child in ipairs(_synR2.channelFolder:GetChildren()) do
+            if child:IsA("RemoteEvent") then pcall(_apc2,child,_plots,_synR2) end
+        end
+        _synR2.channelFolder.ChildAdded:Connect(function(child)
+            if child:IsA("RemoteEvent") then pcall(_apc2,child,_plots,_synR2) end
+        end)
+        _synR2.routeRemote.OnClientEvent:Connect(function(actions)
+            for _,act in ipairs(actions) do
+                local kind,ch=act[1],tostring(act[2])
+                if not _plots:FindFirstChild(ch) then continue end
+                if kind=="ListenerAdded" then
+                    local r=_synR2.channelFolder:FindFirstChild(ch)
+                    if r and r:IsA("RemoteEvent") then pcall(_apc2,r,_plots,_synR2) end
+                elseif kind=="ListenerRemoved" then _dpc2(ch) end
+            end
+        end)
+
+        -- define animal helpers closing over _plots and AnimalsData
+        _gap2=function(ad)
+            local plot=_plots:FindFirstChild(ad.plot); if not plot then return nil end
+            local pods=plot:FindFirstChild("AnimalPodiums"); if not pods then return nil end
+            local pod=pods:FindFirstChild(ad.slot); if not pod then return nil end
+            return pod:GetPivot().Position
+        end
+        _fpfa2=function(ad)
+            if not ad then return nil end
+            local cached=_pmc2[ad.uid]; if cached and cached.Parent then return cached end
+            local plot=_plots:FindFirstChild(ad.plot); if not plot then return nil end
+            local pods=plot:FindFirstChild("AnimalPodiums"); if not pods then return nil end
+            local pod=pods:FindFirstChild(ad.slot); if not pod then return nil end
+            local base=pod:FindFirstChild("Base"); if not base then return nil end
+            local sp=base:FindFirstChild("Spawn"); if not sp then return nil end
+            local att=sp:FindFirstChild("PromptAttachment"); if not att then return nil end
+            for _,p in ipairs(att:GetChildren()) do
+                if p:IsA("ProximityPrompt") then _pmc2[ad.uid]=p; return p end
+            end
+        end
+        _pc2=function()
+            local char=LP.Character; if not char then return nil end
+            local hrp=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return nil end
+            local best,bestDist=nil,math.huge
+            for _,ad in ipairs(_aac2) do
+                if _imba2(ad,_plots) then continue end
+                local pos=_gap2(ad); if not pos then continue end
+                local dist=(hrp.Position-pos).Magnitude
+                -- use Nyxora's radius slider for scan range, V2_STEAL_RANGE for trigger
+                if dist>(Steal.StealRadius or AG_CONFIG.V2_PRIME_RANGE) then continue end
+                if dist<bestDist then bestDist=dist; best=ad end
+            end
+            return best
+        end
+        _as2=function(prompt,ad)
+            if not prompt or not prompt.Parent then return false end
+            _bsc2(prompt)
+            if not _isc2[prompt] then return false end
+            return _esa2(prompt,ad)
+        end
+
+        local function _sap2()
+            local newCache={}
+            for _,plot in ipairs(_plots:GetChildren()) do
+                local cache=_pas2.caches[plot.Name]; if not cache then continue end
+                local al=cache.AnimalList; if typeof(al)~="table" then continue end
+                for slot,ad in pairs(al) do
+                    if type(ad)=="table" then
+                        local info=AnimalsData[ad.Index]; if not info then continue end
+                        table.insert(newCache,{
+                            name=info.DisplayName or ad.Index,
+                            plot=plot.Name, slot=tostring(slot),
+                            uid=plot.Name.."_"..tostring(slot),
+                        })
+                    end
+                end
+            end
+            _aac2=newCache
+        end
+
+        _agReady2=true
+        if Steal.AutoStealEnabled and not _v2sc then task.spawn(startAutoSteal) end
+        _sap2()
+        while task.wait(5) do _sap2() end
+    end)
+end -- end V2 steal engine
 
 -- ============================================================
 -- SAVE & LOAD CONFIG
@@ -2926,6 +3098,11 @@ end
 
 LP.CharacterAdded:Connect(setupChar)
 if LP.Character then task.spawn(function() setupChar(LP.Character) end) end
+
+-- Always show the steal bar from the start
+task.spawn(function()
+    createStealTrackerUI()
+end)
 
 -- ============================================================
 -- RAGDOLL DETECTION LOOP
