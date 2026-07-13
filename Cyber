@@ -2170,6 +2170,11 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
+        if def.key == "reset" then
+            task.spawn(instaReset)
+            return
+        end
+        
         if def.key == "drop" then
             runDropBrainrot()
             return
