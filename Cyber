@@ -2170,11 +2170,6 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
-        if def.key == "reset" then
-            task.spawn(instaReset)
-            return
-        end
-        
         if def.key == "drop" then
             runDropBrainrot()
             return
@@ -2234,8 +2229,6 @@ for i, def in ipairs(stackDefs) do
         end
     end
     
-    -- Add direct button click for mobile support
-    btnFrame.MouseButton1Click:Connect(onTap)
     makeStackDraggable(btnFrame, onTap)
 end
 
