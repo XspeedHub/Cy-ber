@@ -14,7 +14,7 @@ do
             _showIntro = cfg.showIntro
         end
     end
-    tryRead("NyxoraHub_Config.json")
+    tryRead("NyxoraHubConfig.json")
 end
 
 -- Wait for game to fully load before continuing
@@ -731,8 +731,8 @@ local function destroyProxy()
 end
 
 local State = {
-    normalSpeed=60, carrySpeed=30, laggerSpeed=11,
-    speedToggled=false, laggerEnabled=false,
+    normalSpeed=60, carrySpeed=30, laggerSpeed=11, laggerCarrySpeed=20,
+    speedToggled=false, laggerEnabled=false, laggerCarryEnabled=false,
     infJumpEnabled=false, antiRagdollEnabled=false, fpsBoostEnabled=false,
     guiVisible=true, uiLocked=false,
     isStealing=false, stealStartTime=nil, lastStealTick=0,
@@ -755,7 +755,7 @@ local State = {
 local Keys = {
     speed=Enum.KeyCode.Q, guiHide=Enum.KeyCode.LeftControl,
     autoLeft=Enum.KeyCode.L, autoRight=Enum.KeyCode.R,
-    lagger=Enum.KeyCode.Unknown, tpDown=Enum.KeyCode.Unknown,
+    lagger=Enum.KeyCode.Unknown, laggerCarry=Enum.KeyCode.Unknown, tpDown=Enum.KeyCode.Unknown,
     drop=Enum.KeyCode.H, aimbot=Enum.KeyCode.E,
     reset=Enum.KeyCode.Unknown,
 }
@@ -769,7 +769,8 @@ local stackDefs = {
     {key="drop",       label="DROP\nBR"},
     {key="tpDown",     label="TP\nDOWN"},
     {key="reset",      label="INSTA\nRESET"},
-    {key="carrySpeed", label="CARRY\nSPEED"},
+    {key="carrySpeed",   label="CARRY\nSPEED"},
+    {key="laggerCarry",  label="LAGGER\nCARRY"},
 }
 local GRID_W=COLS*(BTN_W+BTN_GAP)-BTN_GAP
 local GRID_H=math.ceil(#stackDefs/COLS)*(BTN_H+BTN_GAP)-BTN_GAP
@@ -808,10 +809,10 @@ local setLagger,setDropBrainrot,setInstaGrab
 local setupMedusaCounter,stopMedusaCounter,startAntiRagdoll,stopAntiRagdoll
 local applyFPSBoost,startAutoSteal,stopAutoSteal
 local startAutoLeft,stopAutoLeft,startAutoRight,stopAutoRight
-local saveConfig,loadConfig,runDropBrainrot,stopDropBrainrot,doTpDown
+local saveConfig,loadConfig,runDropBrainrot,stopDropBrainrot,doTpDown,instaReset
 local startBatAimbot,stopBatAimbot,startBatCounter,stopBatCounter,setBatCounter
 local stackBtnRefs={}; local stackWrappers={}; local keybindBtnRefs={}
-local normalBox,carryBox,laggerBox,stealRadBox,lockBtn
+local normalBox,carryBox,laggerBox,laggerCarryBox,stealRadBox,lockBtn
 local setHideButtonsToggle
 local radTB
 local unwalkAnimateRef = nil
@@ -1736,6 +1737,7 @@ makeSectionHeader("Keybinds")
 makeGap(2)
 makeKeybindRow("Speed Toggle", Keys.speed, function(k) Keys.speed=k end, "speed")
 makeKeybindRow("Lagger Toggle", Keys.lagger, function(k) Keys.lagger=k end, "lagger")
+makeKeybindRow("Lagger Carry", Keys.laggerCarry, function(k) Keys.laggerCarry=k end, "laggerCarry")
 makeKeybindRow("Aimbot Toggle", Keys.aimbot, function(k) Keys.aimbot=k end, "aimbot")
 makeGap(2)
 makeKeybindRow("Auto Left", Keys.autoLeft, function(k) Keys.autoLeft=k end, "autoLeft")
@@ -1762,6 +1764,9 @@ carryBox = makeInputRow("Carry Speed", State.carrySpeed, function(n)
 end)
 laggerBox = makeInputRow("Lagger Speed", State.laggerSpeed, function(n)
     if n > 0 and n <= 500 then State.laggerSpeed = n; pcall(saveConfig) end
+end)
+laggerCarryBox = makeInputRow("Lagger Carry Speed", State.laggerCarrySpeed, function(n)
+    if n > 0 and n <= 500 then State.laggerCarrySpeed = n; pcall(saveConfig) end
 end)
 makeGap(12)
 
@@ -1862,6 +1867,7 @@ local saveTxt = makeFancyButton("Save Button Positions", DB_ACC, DB_DK, DB_GLOW,
         local wrapper = stackWrappers[def.key]
         if wrapper then savedStackPositions[def.key] = wrapper.Position end
     end
+    pcall(saveConfig)
     lbl.Text = "Positions Saved!"
     task.delay(1.8, function() if lbl and lbl.Parent then lbl.Text="Save Button Positions"; lbl.TextColor3=glow end end)
 end)
@@ -1877,6 +1883,7 @@ local lockTxt = makeFancyButton("Lock Positions: OFF", DB_ACC, DB_DK, DB_GLOW, f
         lbl.Text = "Lock Positions: OFF"
         lbl.TextColor3 = glow
     end
+    pcall(saveConfig)
 end)
 lockBtn = lockTxt and lockTxt.Parent
 
@@ -2224,6 +2231,23 @@ for i, def in ipairs(stackDefs) do
             return
         end
         
+        if def.key == "laggerCarry" then
+            local ns = not State.laggerCarryEnabled
+            if ns then
+                if State.laggerEnabled then
+                    State.laggerEnabled = false
+                    if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
+                end
+                if State.speedToggled then
+                    State.speedToggled = false
+                    if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+                end
+            end
+            State.laggerCarryEnabled = ns
+            setOn(ns)
+            return
+        end
+
         if def.key == "lagger" then
             local ns = not btnState
             if ns and State.speedToggled then
@@ -2233,6 +2257,10 @@ for i, def in ipairs(stackDefs) do
                 end
                 State._prevCarry = State.carrySpeed
                 State._prevSpeed = false
+            end
+            if ns and State.laggerCarryEnabled then
+                State.laggerCarryEnabled = false
+                if stackBtnRefs.laggerCarry then stackBtnRefs.laggerCarry.setOn(false) end
             end
             State.laggerEnabled = ns
             setOn(State.laggerEnabled)
@@ -2304,6 +2332,11 @@ for i, def in ipairs(stackDefs) do
             else 
                 stopAutoRight() 
             end
+            return
+        end
+
+        if def.key == "reset" then
+            task.spawn(instaReset)
             return
         end
     end
@@ -3043,7 +3076,8 @@ end)() -- end new steal engine (function scope keeps locals under 200)
 -- ============================================================
 saveConfig = function()
     local data = {}
-    data.normalSpeed=State.normalSpeed; data.carrySpeed=State.carrySpeed; data.laggerSpeed=State.laggerSpeed
+    data.showIntro = _showIntro
+    data.normalSpeed=State.normalSpeed; data.carrySpeed=State.carrySpeed; data.laggerSpeed=State.laggerSpeed; data.laggerCarrySpeed=State.laggerCarrySpeed
     data.stealRadius=Steal.StealRadius; data.stealDuration=Steal.StealDuration
     data.infJump=State.infJumpEnabled; data.antiRagdoll=State.antiRagdollEnabled
     data.fpsBoost=State.fpsBoostEnabled; data.medusaCounter=State.medusaCounterEnabled
@@ -3089,7 +3123,8 @@ loadConfig = function()
 
     if cfg.normalSpeed  then State.normalSpeed=cfg.normalSpeed;   if normalBox  then normalBox.Text=tostring(cfg.normalSpeed)  end end
     if cfg.carrySpeed   then State.carrySpeed=cfg.carrySpeed;     if carryBox   then carryBox.Text=tostring(cfg.carrySpeed)    end end
-    if cfg.laggerSpeed  then State.laggerSpeed=cfg.laggerSpeed;   if laggerBox  then laggerBox.Text=tostring(cfg.laggerSpeed)  end end
+    if cfg.laggerSpeed     then State.laggerSpeed=cfg.laggerSpeed;         if laggerBox     then laggerBox.Text=tostring(cfg.laggerSpeed)         end end
+    if cfg.laggerCarrySpeed then State.laggerCarrySpeed=cfg.laggerCarrySpeed; if laggerCarryBox then laggerCarryBox.Text=tostring(cfg.laggerCarrySpeed) end end
     if cfg.stealRadius  then Steal.StealRadius=cfg.stealRadius;   if stealRadBox and not stealRadBox:IsFocused() then stealRadBox.Text=tostring(cfg.stealRadius) end end
     if cfg.stealDuration then Steal.StealDuration=cfg.stealDuration end
 
@@ -3163,11 +3198,20 @@ loadConfig = function()
         end
     end)
     
+    -- Build a name→EnumItem lookup once (Enum.KeyCode[string] is unreliable in exploits)
+    local kcByName = {}
+    for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
+        kcByName[item.Name] = item
+    end
     for k in pairs(Keys) do
-        local field="KEY_"..k
-        if cfg[field] and Enum.KeyCode[cfg[field]] then
-            local kc=Enum.KeyCode[cfg[field]]; Keys[k]=kc
-            if keybindBtnRefs[k] then keybindBtnRefs[k].Text=getKeyDisplayName(kc) end
+        local field = "KEY_"..k
+        local name  = cfg[field]
+        if name then
+            local kc = kcByName[name]
+            if kc then
+                Keys[k] = kc
+                if keybindBtnRefs[k] then keybindBtnRefs[k].Text = getKeyDisplayName(kc) end
+            end
         end
     end
 end
@@ -3347,7 +3391,7 @@ RunService.RenderStepped:Connect(function()
     if not (h and hrp) then return end; if State._tpInProgress then return end
     if not aimbotActive and not State.autoLeftEnabled and not State.autoRightEnabled then
         local md=h.MoveDirection
-        local spd=State.laggerEnabled and State.laggerSpeed or State.speedToggled and State.carrySpeed or State.normalSpeed
+        local spd=State.laggerCarryEnabled and State.laggerCarrySpeed or State.laggerEnabled and State.laggerSpeed or State.speedToggled and State.carrySpeed or State.normalSpeed
         if md.Magnitude>0 then State.lastMoveDir=md; hrp.Velocity=Vector3.new(md.X*spd,hrp.Velocity.Y,md.Z*spd)
         elseif State.antiRagdollEnabled and State.lastMoveDir.Magnitude>0 then
             local anyHeld=false; for key in pairs(MOVE_KEYS) do if UIS:IsKeyDown(key) then anyHeld=true; break end end
@@ -3552,11 +3596,29 @@ UIS.InputBegan:Connect(function(inp,gp)
         if State.autoRightEnabled then startAutoRight() else stopAutoRight() end
     elseif kc==Keys.drop then
         runDropBrainrot()
+    elseif kc==Keys.laggerCarry then
+        local newState = not State.laggerCarryEnabled
+        if newState then
+            if State.laggerEnabled then
+                State.laggerEnabled = false
+                if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(false) end
+            end
+            if State.speedToggled then
+                State.speedToggled = false
+                if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+            end
+        end
+        State.laggerCarryEnabled = newState
+        if stackBtnRefs.laggerCarry then stackBtnRefs.laggerCarry.setOn(State.laggerCarryEnabled) end
     elseif kc==Keys.lagger then
         local newState = not State.laggerEnabled
         if newState and State.speedToggled then
             State.speedToggled = false
             if stackBtnRefs.carrySpeed then stackBtnRefs.carrySpeed.setOn(false) end
+        end
+        if newState and State.laggerCarryEnabled then
+            State.laggerCarryEnabled = false
+            if stackBtnRefs.laggerCarry then stackBtnRefs.laggerCarry.setOn(false) end
         end
         State.laggerEnabled = newState
         if stackBtnRefs.lagger then stackBtnRefs.lagger.setOn(State.laggerEnabled) end
