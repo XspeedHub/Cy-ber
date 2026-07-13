@@ -233,11 +233,11 @@ local ragTimerActive = false
 -- STEAL TRACKER / PROGRESS BAR (PERMANENTLY VISIBLE)
 -- ============================================================
 local STEAL_TRACKER_COLORS = {
-    Border = Color3.fromRGB(255, 255, 255),
-    Progress = Color3.fromRGB(200, 200, 200),
-    Background = Color3.fromRGB(20, 20, 30),
-    Text = Color3.fromRGB(255, 255, 255),
-    ProgressBg = Color3.fromRGB(10, 10, 15),
+    Border = Color3.fromRGB(80, 255, 80),
+    Progress = Color3.fromRGB(80, 255, 80),
+    Background = Color3.fromRGB(10, 10, 15),
+    Text = Color3.fromRGB(80, 255, 80),
+    ProgressBg = Color3.fromRGB(5, 5, 10),
 }
 
 local StealTracker = {
@@ -2234,6 +2234,8 @@ for i, def in ipairs(stackDefs) do
         end
     end
     
+    -- Add direct button click for mobile support
+    btnFrame.MouseButton1Click:Connect(onTap)
     makeStackDraggable(btnFrame, onTap)
 end
 
