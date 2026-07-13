@@ -287,6 +287,33 @@ local function createStealTrackerUI()
     StealTracker.barContainer.Parent = StealTracker.screenGui
     StealTracker.barContainer.Visible = true  -- ALWAYS VISIBLE
 
+    -- Make steal bar draggable
+    local _stealDragging, _stealDragStart, _stealDragPos = false, nil, nil
+    StealTracker.barContainer.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+           or inp.UserInputType == Enum.UserInputType.Touch then
+            _stealDragging   = true
+            _stealDragStart  = inp.Position
+            _stealDragPos    = StealTracker.barContainer.Position
+            inp.Changed:Connect(function()
+                if inp.UserInputState == Enum.UserInputState.End then
+                    _stealDragging = false
+                end
+            end)
+        end
+    end)
+    game:GetService("UserInputService").InputChanged:Connect(function(inp)
+        if _stealDragging and
+           (inp.UserInputType == Enum.UserInputType.MouseMovement
+            or inp.UserInputType == Enum.UserInputType.Touch) then
+            local dx = inp.Position.X - _stealDragStart.X
+            local dy = inp.Position.Y - _stealDragStart.Y
+            StealTracker.barContainer.Position = UDim2.new(
+                _stealDragPos.X.Scale, _stealDragPos.X.Offset + dx,
+                _stealDragPos.Y.Scale, _stealDragPos.Y.Offset + dy)
+        end
+    end)
+
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 14)
     containerCorner.Parent = StealTracker.barContainer
@@ -1222,22 +1249,76 @@ local titleDiv = Instance.new("Frame", mainOuter)
 titleDiv.Size = UDim2.new(1,0,0,1); titleDiv.Position = UDim2.new(0,0,0,TITLE_H)
 titleDiv.BackgroundColor3 = C.topDivider; titleDiv.BorderSizePixel = 0; titleDiv.ZIndex = 5
 
+local TAB_H = 30
 local CONTENT_Y = TITLE_H + 1
+
+-- Tab bar
+local tabBar = Instance.new("Frame", mainOuter)
+tabBar.Size = UDim2.new(1,0,0,TAB_H); tabBar.Position = UDim2.new(0,0,0,CONTENT_Y)
+tabBar.BackgroundColor3 = THEME.OBSIDIAN; tabBar.BorderSizePixel = 0; tabBar.ZIndex = 5
+
+local tabBarDiv = Instance.new("Frame", mainOuter)
+tabBarDiv.Size = UDim2.new(1,0,0,1); tabBarDiv.Position = UDim2.new(0,0,0,CONTENT_Y+TAB_H)
+tabBarDiv.BackgroundColor3 = C.topDivider; tabBarDiv.BorderSizePixel = 0; tabBarDiv.ZIndex = 5
+
+local SCROLL_Y = CONTENT_Y + TAB_H + 1
 local contentBg = Instance.new("Frame", mainOuter)
-contentBg.Size = UDim2.new(1,0,1,-CONTENT_Y); contentBg.Position = UDim2.new(0,0,0,CONTENT_Y)
+contentBg.Size = UDim2.new(1,0,1,-SCROLL_Y); contentBg.Position = UDim2.new(0,0,0,SCROLL_Y)
 contentBg.BackgroundTransparency = 1; contentBg.BorderSizePixel = 0
 contentBg.ClipsDescendants = true; contentBg.ZIndex = 2
 
-local scrollFrame = Instance.new("ScrollingFrame", contentBg)
-scrollFrame.Size = UDim2.new(1,0,1,0); scrollFrame.BackgroundTransparency = 1
-scrollFrame.BorderSizePixel = 0; scrollFrame.ScrollBarThickness = 3
-scrollFrame.ScrollBarImageColor3 = C.accent; scrollFrame.ScrollBarImageTransparency = 0.4
-scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y; scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
+local function makeScrollPage()
+    local sf = Instance.new("ScrollingFrame", contentBg)
+    sf.Size = UDim2.new(1,0,1,0); sf.BackgroundTransparency = 1
+    sf.BorderSizePixel = 0; sf.ScrollBarThickness = 3
+    sf.ScrollBarImageColor3 = C.accent; sf.ScrollBarImageTransparency = 0.4
+    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y; sf.CanvasSize = UDim2.new(0,0,0,0)
+    sf.Visible = false
+    local ul = Instance.new("UIListLayout", sf)
+    ul.SortOrder = Enum.SortOrder.LayoutOrder; ul.Padding = UDim.new(0,0)
+    return sf
+end
 
-local pageLayout = Instance.new("UIListLayout", scrollFrame)
-pageLayout.SortOrder = Enum.SortOrder.LayoutOrder; pageLayout.Padding = UDim.new(0,0)
+local pages = {
+    main     = makeScrollPage(),
+    settings = makeScrollPage(),
+    keybinds = makeScrollPage(),
+}
+pages.main.Visible = true
 
-local currentPage = scrollFrame; local lo = 0
+local tabBtns = {}
+local activeTab = "main"
+local function switchTab(name)
+    activeTab = name
+    for tname, sf in pairs(pages) do sf.Visible = (tname == name) end
+    for tname, btn in pairs(tabBtns) do
+        btn.TextColor3 = (tname == name) and THEME.LIGHT_BLUE or Color3.fromRGB(80,80,80)
+        local ul = btn:FindFirstChild("TabUnderline")
+        if ul then ul.BackgroundTransparency = (tname == name) and 0 or 1 end
+    end
+end
+
+local TAB_DEFS = {{"main","Main"},{"settings","Settings"},{"keybinds","Keybinds"}}
+local tabW = WIN_W / #TAB_DEFS
+for i, td in ipairs(TAB_DEFS) do
+    local tkey, tlabel = td[1], td[2]
+    local tb = Instance.new("TextButton", tabBar)
+    tb.Size = UDim2.new(0,tabW,1,0); tb.Position = UDim2.new(0,(i-1)*tabW,0,0)
+    tb.BackgroundTransparency = 1; tb.BorderSizePixel = 0; tb.ZIndex = 6
+    tb.Text = tlabel
+    tb.FontFace = Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+    tb.TextSize = 11
+    tb.TextColor3 = (tkey == "main") and THEME.LIGHT_BLUE or Color3.fromRGB(80,80,80)
+    local ul = Instance.new("Frame", tb)
+    ul.Name = "TabUnderline"
+    ul.Size = UDim2.new(0.65,0,0,2); ul.Position = UDim2.new(0.175,0,1,-2)
+    ul.BackgroundColor3 = THEME.LIGHT_BLUE; ul.BorderSizePixel = 0
+    ul.BackgroundTransparency = (tkey == "main") and 0 or 1
+    tb.MouseButton1Click:Connect(function() switchTab(tkey) end)
+    tabBtns[tkey] = tb
+end
+
+local currentPage = pages.main; local lo = 0
 local function LO() lo = lo + 1; return lo end
 
 local function makeGap(px)
@@ -1566,31 +1647,9 @@ local function startRagdollTimer()
 end
 
 -- ============================================================
--- GUI ROWS
+-- GUI ROWS — MAIN TAB
 -- ============================================================
-makeSectionHeader("Speed Settings")
-makeGap(2)
-
-normalBox = makeInputRow("Normal Speed", State.normalSpeed, function(n)
-    if n > 0 and n <= 500 then State.normalSpeed = n; pcall(saveConfig) end
-end)
-carryBox = makeInputRow("Carry Speed", State.carrySpeed, function(n)
-    if n > 0 and n <= 500 then State.carrySpeed = n; pcall(saveConfig) end
-end)
-laggerBox = makeInputRow("Lagger Speed", State.laggerSpeed, function(n)
-    if n > 0 and n <= 500 then State.laggerSpeed = n; pcall(saveConfig) end
-end)
-
-makeGap(12)
-
-makeSectionHeader("GUI Settings")
-makeGap(2)
-makeInputRow("GUI Scale (0.5-1.5)", State.guiScale or 1.0, function(n)
-    if n >= 0.5 and n <= 1.5 then
-        setGuiScale(n)
-    end
-end)
-makeGap(12)
+currentPage = pages.main; lo = 0
 
 makeSectionHeader("Aimbot")
 makeGap(2)
@@ -1600,13 +1659,13 @@ setBatCounter = makeToggleRow("Bat Counter", false, function(on)
     pcall(saveConfig)
 end)
 makeGap(2)
-
 setMedusaCounter = makeToggleRow("Medusa Counter", false, function(on)
     State.medusaCounterEnabled=on
     if on then setupMedusaCounter(LP.Character) else stopMedusaCounter() end
     pcall(saveConfig)
 end)
-makeGap(5)
+makeGap(8)
+
 makeSectionHeader("Stealing")
 makeGap(2)
 setInstaGrab = makeToggleRow("Insta Grab", false, function(on)
@@ -1625,7 +1684,6 @@ end)
 makeInputRow("Steal Duration", Steal.StealDuration, function(n)
     if n>=0.05 and n<=2 then Steal.StealDuration=n; pcall(saveConfig) end
 end)
-
 makeGap(8)
 
 makeSectionHeader("Combat / Defense")
@@ -1643,13 +1701,11 @@ setFps = makeToggleRow("FPS Boost", false, function(on)
     if on then pcall(applyFPSBoost) end
     pcall(saveConfig)
 end)
-
 setUnwalkToggle = makeToggleRow("Unwalk", false, function(on)
     State.unwalkEnabled = on
     if on then doStartUnwalk() else doStopUnwalk() end
     pcall(saveConfig)
 end)
-
 makeGap(2)
 local tryardSetter = makeToggleRow("Good Animation", State.tryardAnimEnabled, function(on)
     State.tryardAnimEnabled = on
@@ -1660,9 +1716,7 @@ local tryardSetter = makeToggleRow("Good Animation", State.tryardAnimEnabled, fu
     end
     pcall(saveConfig)
 end)
-
 makeGap(8)
-
 setAutoTpDown = makeToggleRow("Auto Tp Down", false, function(on)
     State.autoTpDownEnabled = on
     pcall(saveConfig)
@@ -1671,29 +1725,54 @@ makeInputRow("Y Trigger", State.autoTpDownY, function(n)
     State.autoTpDownY = n
     pcall(saveConfig)
 end)
+makeGap(10)
 
-makeGap(8)
 -- ============================================================
--- KEYBINDS SECTION
+-- GUI ROWS — KEYBINDS TAB
 -- ============================================================
+currentPage = pages.keybinds; lo = 0
+
 makeSectionHeader("Keybinds")
 makeGap(2)
-
 makeKeybindRow("Speed Toggle", Keys.speed, function(k) Keys.speed=k end, "speed")
 makeKeybindRow("Lagger Toggle", Keys.lagger, function(k) Keys.lagger=k end, "lagger")
 makeKeybindRow("Aimbot Toggle", Keys.aimbot, function(k) Keys.aimbot=k end, "aimbot")
 makeGap(2)
-
 makeKeybindRow("Auto Left", Keys.autoLeft, function(k) Keys.autoLeft=k end, "autoLeft")
 makeKeybindRow("Auto Right", Keys.autoRight, function(k) Keys.autoRight=k end, "autoRight")
 makeKeybindRow("TP Down", Keys.tpDown, function(k) Keys.tpDown=k end, "tpDown")
 makeGap(2)
-
 makeKeybindRow("Drop BR", Keys.drop, function(k) Keys.drop=k end, "drop")
 makeKeybindRow("Insta Reset", Keys.reset, function(k) Keys.reset=k end, "reset")
 makeKeybindRow("Hide GUI", Keys.guiHide, function(k) Keys.guiHide=k end, "guiHide")
+makeGap(10)
 
-makeGap(8)
+-- ============================================================
+-- GUI ROWS — SETTINGS TAB
+-- ============================================================
+currentPage = pages.settings; lo = 0
+
+makeSectionHeader("Speed Settings")
+makeGap(2)
+normalBox = makeInputRow("Normal Speed", State.normalSpeed, function(n)
+    if n > 0 and n <= 500 then State.normalSpeed = n; pcall(saveConfig) end
+end)
+carryBox = makeInputRow("Carry Speed", State.carrySpeed, function(n)
+    if n > 0 and n <= 500 then State.carrySpeed = n; pcall(saveConfig) end
+end)
+laggerBox = makeInputRow("Lagger Speed", State.laggerSpeed, function(n)
+    if n > 0 and n <= 500 then State.laggerSpeed = n; pcall(saveConfig) end
+end)
+makeGap(12)
+
+makeSectionHeader("GUI Settings")
+makeGap(2)
+makeInputRow("GUI Scale (0.5-1.5)", State.guiScale or 1.0, function(n)
+    if n >= 0.5 and n <= 1.5 then
+        setGuiScale(n)
+    end
+end)
+makeGap(12)
 
 local savedStackPositions = {}
 
@@ -2628,272 +2707,336 @@ do
 end -- end anti-lag do block
 
 -- ============================================================
--- STEAL FUNCTIONS (WITH TRACKER INTEGRATED)
+-- STEAL FUNCTIONS (NEW ENGINE)
+-- owns its own function scope to stay under Lua's 200-local limit
 -- ============================================================
-local function isMyPlotByName(pn)
-    local ct=tick(); if Steal.plotCache[pn] and (ct-(Steal.plotCacheTime[pn] or 0))<PLOT_CACHE_DURATION then return Steal.plotCache[pn] end
-    local plots=workspace:FindFirstChild("Plots"); if not plots then Steal.plotCache[pn]=false; Steal.plotCacheTime[pn]=ct; return false end
-    local plot=plots:FindFirstChild(pn); if not plot then Steal.plotCache[pn]=false; Steal.plotCacheTime[pn]=ct; return false end
-    local sign=plot:FindFirstChild("PlotSign"); if sign then local yb=sign:FindFirstChild("YourBase"); if yb and yb:IsA("BillboardGui") then local r=yb.Enabled==true; Steal.plotCache[pn]=r; Steal.plotCacheTime[pn]=ct; return r end end
-    Steal.plotCache[pn]=false; Steal.plotCacheTime[pn]=ct; return false
-end
+;(function()
+    -- Ensure Nyxora steal bar UI exists from the start
+    createStealTrackerUI()
 
--- ── Auto Steal V2 engine (latestakkai10 source) ───────────────────────────────
--- AG_CONFIG is top-level so Nyxora's UI can reference V2_PRIME_RANGE later.
-local AG_CONFIG = {HOLD_MIN=1.3, HOLD_MAX=2.6, ENTRY_DELAY=0.3, COOLDOWN=0.05,
-    V2_STEAL_RANGE=8, V2_PRIME_RANGE=70}
+    -- ── Config ──────────────────────────────────────────────────────
+    local HOLD_MIN    = 1.3
+    local HOLD_MAX    = 2.6
+    local ENTRY_DELAY = 0.3
+    local COOLDOWN    = 0.05
+    local STEAL_RANGE = 8
 
-do -- all V2 internals scoped here — frees top-level registers vs named locals
-    local _pas2     = { caches={}, connections={} }   -- plot-animal sync
-    local _aac2     = {}   -- all-animals cache
-    local _pmc2     = {}   -- prompt memory cache
-    local _isc2     = {}   -- internal steal cache
-    local _v2sc     = nil  -- heartbeat RBXScriptConnection
-    local _agReady2 = false
-    -- Alias Nyxora's forward-declared _StealState so the bar UI updates live.
-    local _SS2      = _StealState
+    -- ── Shared upvalues used across nested do-blocks ────────────────
+    local allAnimals   = {}
+    local promptCache  = {}
+    local stealCache   = {}
+    local stealConn    = nil
+    local StealState   = { active = false, startTime = 0 }
+    local irishPlots   = workspace:WaitForChild("Plots")
+    local irishAnimals = require(
+        game:GetService("ReplicatedStorage"):WaitForChild("Datas")
+            :WaitForChild("Animals"))
 
-    -- Forward-declare animal helpers; assigned inside async init (need _plots/AnimalsData).
-    local _gap2, _fpfa2, _pc2, _as2
+    -- Forward declarations (assigned in nested blocks below)
+    local getPlotData, pickClosest, getDist, findPrompt, attempt, scanPlots
 
-    -- ── sync diff helpers ──────────────────────────────────────────────────────
-    local function _ssp2(path)
-        if typeof(path)=="table" then return path end
-        local out={}; for part in string.gmatch(tostring(path),"[^%.]+") do table.insert(out,tonumber(part) or part) end; return out
-    end
-    local function _rsp2(path,root)
-        local cur,par,key=root,nil,nil
-        for _,part in ipairs(_ssp2(path)) do par=cur;key=part;cur=cur and cur[part] or nil end
-        return cur,par,key
-    end
-    local function _apsd2(ch,pkt)
-        local cache=_pas2.caches[ch]; if typeof(cache)~="table" then return end
-        local path,action,a,b=pkt[1],pkt[2],pkt[3],pkt[4]; local cur,par,key=_rsp2(path,cache)
-        if action=="Changed" then if par~=nil then par[key]=a end
-        elseif action=="ArrayInsert" then if cur~=nil then table.insert(cur,b,a) end
-        elseif action=="ArrayRemoved" then if cur~=nil then table.remove(cur,b) end
-        elseif action=="DictionaryInsert" then if cur~=nil then cur[b]=a end
-        elseif action=="DictionaryRemoved" then if cur~=nil then cur[b]=nil end end
-    end
-    local function _apc2(remote,_plots,_synR2)
-        if _pas2.connections[remote] then return end
-        local ch=tostring(remote.Name)
-        if not _plots:FindFirstChild(ch) then return end
-        if _pas2.caches[ch]==nil then
-            if _synR2.requestData then
-                local ok,data=pcall(function() return _synR2.requestData:InvokeServer(ch) end)
-                _pas2.caches[ch]=(ok and typeof(data)=="table") and data or {}
-            else _pas2.caches[ch]={} end
+    -- ── Sync machinery ──────────────────────────────────────────────
+    do
+        local syncCache = { caches = {}, connections = {} }
+        local pkgs  = game:GetService("ReplicatedStorage"):WaitForChild("Packages")
+        local synch = pkgs:WaitForChild("Synchronizer")
+        local chanFolder  = synch:WaitForChild("Channel")
+        local routeRemote = synch:WaitForChild("CommunicationRoute")
+        local reqData     = synch:FindFirstChild("RequestData")
+
+        local function splitPath(path)
+            if typeof(path) == "table" then return path end
+            local out = {}
+            for part in string.gmatch(tostring(path), "[^%.]+") do
+                table.insert(out, tonumber(part) or part)
+            end
+            return out
         end
-        _pas2.connections[remote]=remote.OnClientEvent:Connect(function(q)
-            for _,pkt in ipairs(q) do _apsd2(ch,pkt) end
-        end)
-    end
-    local function _dpc2(ch)
-        for remote,conn in pairs(_pas2.connections) do
-            if tostring(remote.Name)==tostring(ch) then
-                conn:Disconnect(); _pas2.connections[remote]=nil; _pas2.caches[tostring(ch)]=nil; break
+
+        local function resolvePath(path, root)
+            local cur, par, key = root, nil, nil
+            for _, part in ipairs(splitPath(path)) do
+                par = cur; key = part
+                cur = cur and cur[part] or nil
+            end
+            return cur, par, key
+        end
+
+        local function applyDiff(ch, pkt)
+            local cache = syncCache.caches[ch]
+            if typeof(cache) ~= "table" then return end
+            local path, action, a, b = pkt[1], pkt[2], pkt[3], pkt[4]
+            local cur, par, key = resolvePath(path, cache)
+            if action == "Changed"             then if par then par[key] = a end
+            elseif action == "ArrayInsert"     then if cur then table.insert(cur, b, a) end
+            elseif action == "ArrayRemoved"    then if cur then table.remove(cur, b) end
+            elseif action == "DictionaryInsert" then if cur then cur[b] = a end
+            elseif action == "DictionaryRemoved" then if cur then cur[b] = nil end
             end
         end
-    end
 
-    -- ── plot owner / "is my base" ──────────────────────────────────────────────
-    local function _gpo2(plot)
-        local sign=plot:FindFirstChild("PlotSign")
-        local frame=sign and sign:FindFirstChild("SurfaceGui") and sign.SurfaceGui:FindFirstChild("Frame")
-        local lbl=frame and frame:FindFirstChild("TextLabel")
-        if not lbl or lbl.Text=="Empty Base" then return nil end
-        return lbl.Text:gsub("'s [Bb]ase$",""):gsub("%s+$","")
-    end
-    local function _imba2(ad,_plots)
-        if not ad or not ad.plot then return false end
-        local plot=_plots:FindFirstChild(ad.plot); if not plot then return false end
-        return _gpo2(plot)==LP.DisplayName
-    end
-
-    -- ── distance helper (calls _gap2 which is set after init) ─────────────────
-    local function _dta2(ad)
-        local char=LP.Character; if not char then return math.huge end
-        local hrp=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return math.huge end
-        local pos=_gap2 and _gap2(ad); if not pos then return math.huge end
-        return (hrp.Position-pos).Magnitude
-    end
-
-    -- ── build hold/trigger callbacks for a prompt ──────────────────────────────
-    local function _bsc2(prompt)
-        if _isc2[prompt] then return end
-        local data={holdCallbacks={},triggerCallbacks={},ready=true}
-        local okA,c1=pcall(getconnections,prompt.PromptButtonHoldBegan)
-        if okA and type(c1)=="table" then for _,c in ipairs(c1) do if type(c.Function)=="function" then table.insert(data.holdCallbacks,c.Function) end end end
-        local okB,c2=pcall(getconnections,prompt.Triggered)
-        if okB and type(c2)=="table" then for _,c in ipairs(c2) do if type(c.Function)=="function" then table.insert(data.triggerCallbacks,c.Function) end end end
-        if (#data.holdCallbacks>0) or (#data.triggerCallbacks>0) then _isc2[prompt]=data end
-    end
-
-    -- ── core steal execution: hold → wait range → fire ─────────────────────────
-    local function _esa2(prompt,ad)
-        local data=_isc2[prompt]; if not data or not data.ready then return false end
-        data.ready=false
-        local label=ad.name or "Animal"
-        _SS2.active=true; _SS2.startTime=tick(); _SS2.phase="holding"; _SS2.label=label
-        State.isStealing=true
-        showStealProgress(AG_CONFIG.HOLD_MIN+AG_CONFIG.HOLD_MAX)
-        task.spawn(function()
-            for _,fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
-            task.wait(AG_CONFIG.HOLD_MIN)
-            _SS2.phase="waitingRange"
-            local alreadyInRange=_dta2(ad)<=AG_CONFIG.V2_STEAL_RANGE
-            local fired=false
-            local deadline=tick()+AG_CONFIG.HOLD_MAX
-            while tick()<deadline do
-                if not prompt.Parent then break end
-                if _dta2(ad)<=AG_CONFIG.V2_STEAL_RANGE then
-                    if not alreadyInRange then task.wait(AG_CONFIG.ENTRY_DELAY) end
-                    for _,fn in ipairs(data.triggerCallbacks) do task.spawn(fn) end
-                    fired=true; break
+        local function attachChan(remote)
+            if syncCache.connections[remote] then return end
+            local ch = tostring(remote.Name)
+            if not irishPlots:FindFirstChild(ch) then return end
+            if syncCache.caches[ch] == nil then
+                if reqData then
+                    local ok, d = pcall(function() return reqData:InvokeServer(ch) end)
+                    syncCache.caches[ch] = (ok and typeof(d)=="table") and d or {}
+                else
+                    syncCache.caches[ch] = {}
                 end
-                task.wait()
             end
-            _SS2.lastResult     = fired and ("Stole "..label) or ("Missed "..label)
-            _SS2.lastResultTime = tick()
-            _SS2.active=false; _SS2.phase="idle"
-            State.isStealing=false
-            hideStealProgress()
-            task.wait(AG_CONFIG.COOLDOWN); data.ready=true
-        end)
-        return true
-    end
-
-    -- ── public API: assigned to Nyxora's forward-declared upvalues ─────────────
-    startAutoSteal=function()
-        if _v2sc then return end
-        if not _agReady2 then
-            -- init still loading — retry once it finishes
-            task.spawn(function()
-                repeat task.wait(0.5) until _agReady2 or not Steal.AutoStealEnabled
-                if Steal.AutoStealEnabled and not _v2sc then startAutoSteal() end
-            end); return
+            syncCache.connections[remote] = remote.OnClientEvent:Connect(function(q)
+                for _, pkt in ipairs(q) do applyDiff(ch, pkt) end
+            end)
         end
-        _v2sc=RunService.Heartbeat:Connect(function()
-            if not Steal.AutoStealEnabled or _SS2.active then return end
-            local target=_pc2(); if not target then return end
-            local prompt=_pmc2[target.uid]
-            if not prompt or not prompt.Parent then prompt=_fpfa2(target) end
-            if prompt then _as2(prompt,target) end
-        end)
-    end
-    stopAutoSteal=function()
-        if _v2sc then _v2sc:Disconnect(); _v2sc=nil end
-        _SS2.active=false; _SS2.phase="idle"
-        State.isStealing=false; State.lastStealTick=0
-        Steal.plotCache={}; Steal.plotCacheTime={}; Steal.cachedPrompts={}
-        _aac2={}; _pmc2={}; _isc2={}
-        hideStealProgress()
-    end
 
-    -- ── async init: WaitForChild in background so script loads instantly ────────
-    task.spawn(function()
-        local _RS=game:GetService("ReplicatedStorage")
-        local ok1,_Pkgs  = pcall(function() return _RS:WaitForChild("Packages",8) end)
-        local ok2,_Datas = pcall(function() return _RS:WaitForChild("Datas",8) end)
-        if not ok1 or not ok2 then return end
-        local ok3,AnimalsData = pcall(function() return require(_Datas:WaitForChild("Animals",8)) end)
-        if not ok3 then return end
-        local _plots=workspace:WaitForChild("Plots")
-        local _synR2=(function()
-            local f=_Pkgs:WaitForChild("Synchronizer",8); if not f then return {} end
-            return {
-                channelFolder=f:WaitForChild("Channel"),
-                routeRemote  =f:WaitForChild("CommunicationRoute"),
-                requestData  =f:FindFirstChild("RequestData"),
-            }
-        end)()
-        if not _synR2.channelFolder then return end
-
-        -- wire sync channels
-        for _,child in ipairs(_synR2.channelFolder:GetChildren()) do
-            if child:IsA("RemoteEvent") then pcall(_apc2,child,_plots,_synR2) end
+        local function detachChan(ch)
+            for remote, conn in pairs(syncCache.connections) do
+                if tostring(remote.Name) == tostring(ch) then
+                    conn:Disconnect()
+                    syncCache.connections[remote] = nil
+                    syncCache.caches[tostring(ch)] = nil
+                    break
+                end
+            end
         end
-        _synR2.channelFolder.ChildAdded:Connect(function(child)
-            if child:IsA("RemoteEvent") then pcall(_apc2,child,_plots,_synR2) end
+
+        for _, child in ipairs(chanFolder:GetChildren()) do
+            if child:IsA("RemoteEvent") then attachChan(child) end
+        end
+        chanFolder.ChildAdded:Connect(function(child)
+            if child:IsA("RemoteEvent") then attachChan(child) end
         end)
-        _synR2.routeRemote.OnClientEvent:Connect(function(actions)
-            for _,act in ipairs(actions) do
-                local kind,ch=act[1],tostring(act[2])
-                if not _plots:FindFirstChild(ch) then continue end
-                if kind=="ListenerAdded" then
-                    local r=_synR2.channelFolder:FindFirstChild(ch)
-                    if r and r:IsA("RemoteEvent") then pcall(_apc2,r,_plots,_synR2) end
-                elseif kind=="ListenerRemoved" then _dpc2(ch) end
+        routeRemote.OnClientEvent:Connect(function(actions)
+            for _, action in ipairs(actions) do
+                local kind, ch = action[1], tostring(action[2])
+                if not irishPlots:FindFirstChild(ch) then continue end
+                if kind == "ListenerAdded" then
+                    local rem = chanFolder:FindFirstChild(ch)
+                    if rem and rem:IsA("RemoteEvent") then attachChan(rem) end
+                elseif kind == "ListenerRemoved" then
+                    detachChan(ch)
+                end
             end
         end)
 
-        -- define animal helpers closing over _plots and AnimalsData
-        _gap2=function(ad)
-            local plot=_plots:FindFirstChild(ad.plot); if not plot then return nil end
-            local pods=plot:FindFirstChild("AnimalPodiums"); if not pods then return nil end
-            local pod=pods:FindFirstChild(ad.slot); if not pod then return nil end
-            return pod:GetPivot().Position
+        -- Expose cache reader to outer scope
+        getPlotData = function(plotName) return syncCache.caches[plotName] end
+    end -- sync machinery
+
+    -- ── Animal helpers ───────────────────────────────────────────────
+    do
+        local function plotOwner(plot)
+            local sign  = plot:FindFirstChild("PlotSign")
+            local frame = sign and sign:FindFirstChild("SurfaceGui")
+                and sign.SurfaceGui:FindFirstChild("Frame")
+            local lbl   = frame and frame:FindFirstChild("TextLabel")
+            if not lbl or lbl.Text == "Empty Base" then return nil end
+            return lbl.Text:gsub("'s [Bb]ase$",""):gsub("%s+$","")
         end
-        _fpfa2=function(ad)
+
+        local function isMyBase(ad)
+            if not ad or not ad.plot then return false end
+            local plot = irishPlots:FindFirstChild(ad.plot)
+            return plot and plotOwner(plot) == LP.DisplayName
+        end
+
+        local function getPos(ad)
+            local plot    = workspace.Plots:FindFirstChild(ad.plot);    if not plot    then return nil end
+            local podiums = plot:FindFirstChild("AnimalPodiums");       if not podiums then return nil end
+            local podium  = podiums:FindFirstChild(ad.slot);            if not podium  then return nil end
+            return podium:GetPivot().Position
+        end
+
+        getDist = function(ad)
+            local c = LP.Character; if not c then return math.huge end
+            local hrp = c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso")
+            if not hrp then return math.huge end
+            local pos = getPos(ad); if not pos then return math.huge end
+            return (hrp.Position - pos).Magnitude
+        end
+
+        findPrompt = function(ad)
             if not ad then return nil end
-            local cached=_pmc2[ad.uid]; if cached and cached.Parent then return cached end
-            local plot=_plots:FindFirstChild(ad.plot); if not plot then return nil end
-            local pods=plot:FindFirstChild("AnimalPodiums"); if not pods then return nil end
-            local pod=pods:FindFirstChild(ad.slot); if not pod then return nil end
-            local base=pod:FindFirstChild("Base"); if not base then return nil end
-            local sp=base:FindFirstChild("Spawn"); if not sp then return nil end
-            local att=sp:FindFirstChild("PromptAttachment"); if not att then return nil end
-            for _,p in ipairs(att:GetChildren()) do
-                if p:IsA("ProximityPrompt") then _pmc2[ad.uid]=p; return p end
+            local cached = promptCache[ad.uid]
+            if cached and cached.Parent then return cached end
+            local plot    = workspace.Plots:FindFirstChild(ad.plot);    if not plot    then return nil end
+            local podiums = plot:FindFirstChild("AnimalPodiums");       if not podiums then return nil end
+            local podium  = podiums:FindFirstChild(ad.slot);            if not podium  then return nil end
+            local base    = podium:FindFirstChild("Base");              if not base    then return nil end
+            local spawn   = base:FindFirstChild("Spawn");              if not spawn   then return nil end
+            local attach  = spawn:FindFirstChild("PromptAttachment");   if not attach  then return nil end
+            for _, p in ipairs(attach:GetChildren()) do
+                if p:IsA("ProximityPrompt") then
+                    promptCache[ad.uid] = p; return p
+                end
             end
+            return nil
         end
-        _pc2=function()
-            local char=LP.Character; if not char then return nil end
-            local hrp=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso"); if not hrp then return nil end
-            local best,bestDist=nil,math.huge
-            for _,ad in ipairs(_aac2) do
-                if _imba2(ad,_plots) then continue end
-                local pos=_gap2(ad); if not pos then continue end
-                local dist=(hrp.Position-pos).Magnitude
-                -- use Nyxora's radius slider for scan range, V2_STEAL_RANGE for trigger
-                if dist>(Steal.StealRadius or AG_CONFIG.V2_PRIME_RANGE) then continue end
-                if dist<bestDist then bestDist=dist; best=ad end
+
+        pickClosest = function()
+            local c = LP.Character; if not c then return nil end
+            local hrp = c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso")
+            if not hrp then return nil end
+            local best, bestD = nil, math.huge
+            local scanR = Steal.StealRadius or 70
+            for _, ad in ipairs(allAnimals) do
+                if isMyBase(ad) then continue end
+                local pos = getPos(ad); if not pos then continue end
+                local d = (hrp.Position - pos).Magnitude
+                if d > scanR then continue end
+                if d < bestD then bestD = d; best = ad end
             end
             return best
         end
-        _as2=function(prompt,ad)
-            if not prompt or not prompt.Parent then return false end
-            _bsc2(prompt)
-            if not _isc2[prompt] then return false end
-            return _esa2(prompt,ad)
-        end
 
-        local function _sap2()
-            local newCache={}
-            for _,plot in ipairs(_plots:GetChildren()) do
-                local cache=_pas2.caches[plot.Name]; if not cache then continue end
-                local al=cache.AnimalList; if typeof(al)~="table" then continue end
-                for slot,ad in pairs(al) do
-                    if type(ad)=="table" then
-                        local info=AnimalsData[ad.Index]; if not info then continue end
-                        table.insert(newCache,{
-                            name=info.DisplayName or ad.Index,
-                            plot=plot.Name, slot=tostring(slot),
-                            uid=plot.Name.."_"..tostring(slot),
+        scanPlots = function()
+            local newCache = {}
+            for _, plot in ipairs(irishPlots:GetChildren()) do
+                local cache = getPlotData(plot.Name)
+                if not cache then continue end
+                local animalList = cache.AnimalList
+                if typeof(animalList) ~= "table" then continue end
+                for slot, ad in pairs(animalList) do
+                    if type(ad) == "table" then
+                        local info = irishAnimals[ad.Index]
+                        if not info then continue end
+                        table.insert(newCache, {
+                            name = info.DisplayName or ad.Index,
+                            plot = plot.Name,
+                            slot = tostring(slot),
+                            uid  = plot.Name .. "_" .. tostring(slot),
                         })
                     end
                 end
             end
-            _aac2=newCache
+            allAnimals = newCache
+        end
+    end -- animal helpers
+
+    -- ── Steal execution ──────────────────────────────────────────────
+    do
+        local function buildCBs(prompt)
+            if stealCache[prompt] then return end
+            local data = { holdCBs = {}, trigCBs = {}, ready = true }
+            local ok1, c1 = pcall(getconnections, prompt.PromptButtonHoldBegan)
+            if ok1 and type(c1) == "table" then
+                for _, c in ipairs(c1) do
+                    if type(c.Function)=="function" then table.insert(data.holdCBs, c.Function) end
+                end
+            end
+            local ok2, c2 = pcall(getconnections, prompt.Triggered)
+            if ok2 and type(c2) == "table" then
+                for _, c in ipairs(c2) do
+                    if type(c.Function)=="function" then table.insert(data.trigCBs, c.Function) end
+                end
+            end
+            if #data.holdCBs > 0 or #data.trigCBs > 0 then
+                stealCache[prompt] = data
+            end
         end
 
-        _agReady2=true
-        if Steal.AutoStealEnabled and not _v2sc then task.spawn(startAutoSteal) end
-        _sap2()
-        while task.wait(5) do _sap2() end
+        local function execSteal(prompt, ad)
+            local data = stealCache[prompt]
+            if not data or not data.ready then return false end
+            data.ready = false
+            StealState.active    = true
+            StealState.startTime = tick()
+            task.spawn(function()
+                for _, fn in ipairs(data.holdCBs) do task.spawn(fn) end
+                task.wait(HOLD_MIN)
+                local alreadyClose = getDist(ad) <= STEAL_RANGE
+                while true do
+                    if tick() - StealState.startTime > HOLD_MAX then break end
+                    if not prompt.Parent then break end
+                    if getDist(ad) <= STEAL_RANGE then
+                        if not alreadyClose then task.wait(ENTRY_DELAY) end
+                        for _, fn in ipairs(data.trigCBs) do task.spawn(fn) end
+                        break
+                    end
+                    task.wait()
+                end
+                StealState.active = false
+                task.wait(COOLDOWN)
+                data.ready = true
+            end)
+            return true
+        end
+
+        attempt = function(prompt, ad)
+            if not prompt or not prompt.Parent then return false end
+            buildCBs(prompt)
+            if not stealCache[prompt] then return false end
+            return execSteal(prompt, ad)
+        end
+    end -- steal execution
+
+    -- ── Public API (assigned to outer upvalues) ──────────────────────
+    startAutoSteal = function()
+        if stealConn then return end
+        scanPlots()
+        stealConn = RunService.Heartbeat:Connect(function()
+            if not Steal.AutoStealEnabled then return end
+            if StealState.active then return end
+            local target = pickClosest(); if not target then return end
+            local prompt = promptCache[target.uid]
+            if not prompt or not prompt.Parent then prompt = findPrompt(target) end
+            if prompt then attempt(prompt, target) end
+        end)
+        task.spawn(function()
+            while stealConn and Steal.AutoStealEnabled do
+                task.wait(5)
+                if stealConn and Steal.AutoStealEnabled then scanPlots() end
+            end
+        end)
+    end
+
+    stopAutoSteal = function()
+        if stealConn then stealConn:Disconnect(); stealConn = nil end
+        StealState.active = false
+        allAnimals   = {}
+        promptCache  = {}
+        stealCache   = {}
+    end
+
+    -- ── Bar driver (Nyxora steal bar) ────────────────────────────────
+    task.spawn(function()
+        while true do
+            local pb  = StealTracker.progressBar
+            local sl  = StealTracker.statusLabel
+            local pl  = StealTracker.percentLabel
+            local inRange = false
+            local c = LP.Character
+            if c then
+                local hrp = c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso")
+                if hrp and pickClosest() then inRange = true end
+            end
+            if StealState.active and StealState.startTime > 0 then
+                local elapsed = tick() - StealState.startTime
+                local pct = math.clamp(elapsed / HOLD_MAX, 0, 1)
+                if pb then pb.Size = UDim2.new(pct, 0, 1, 0) end
+                if pl then pl.Text = math.floor(pct*100) .. "%" end
+                if elapsed >= HOLD_MIN then
+                    if sl then sl.Text = "READY";   sl.TextColor3 = Color3.fromRGB(100,255,130) end
+                else
+                    if sl then sl.Text = "UNREADY"; sl.TextColor3 = Color3.fromRGB(255,200,60)  end
+                end
+            elseif not inRange then
+                if pb then pb.Size = UDim2.new(0,0,1,0) end
+                if sl then sl.Text = "UNREADY"; sl.TextColor3 = Color3.fromRGB(150,150,150) end
+                if pl then pl.Text = "0%" end
+            else
+                if pb then pb.Size = UDim2.new(0,0,1,0) end
+                if sl then sl.Text = "READY";   sl.TextColor3 = Color3.fromRGB(100,255,130) end
+                if pl then pl.Text = "0%" end
+            end
+            task.wait()
+        end
     end)
-end -- end V2 steal engine
+
+end)() -- end new steal engine (function scope keeps locals under 200)
 
 -- ============================================================
 -- SAVE & LOAD CONFIG
