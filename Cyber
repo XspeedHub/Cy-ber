@@ -280,7 +280,7 @@ local function createStealTrackerUI()
     -- Main container - ALWAYS VISIBLE
     StealTracker.barContainer = Instance.new("Frame")
     StealTracker.barContainer.Size = UDim2.new(0, 320, 0, 38)
-    StealTracker.barContainer.Position = UDim2.new(0.5, -160, 0.13, 0)
+    StealTracker.barContainer.Position = UDim2.new(0.5, -160, 1, -100)
     StealTracker.barContainer.BackgroundColor3 = STEAL_TRACKER_COLORS.Background
     StealTracker.barContainer.BackgroundTransparency = 0.15
     StealTracker.barContainer.BorderSizePixel = 0
